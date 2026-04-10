@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Optimize | JobHunt AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {"on-secondary": "#00344a", surface: "#111317", "error-container": "#93000a", "primary-container": "#e2e2e2", "surface-dim": "#111317", "on-tertiary-container": "#715996", tertiary: "#ffffff", "secondary-container": "#0178a3", "outline-variant": "#444748", "primary-fixed": "#e2e2e2", "on-secondary-fixed": "#001e2c", "surface-variant": "#333539", "on-background": "#e2e2e8", "on-primary-fixed": "#1a1c1c", "on-secondary-fixed-variant": "#004c69", "surface-container-lowest": "#0c0e12", "surface-tint": "#c6c6c7", "on-tertiary-fixed-variant": "#523b76", "on-primary-fixed-variant": "#454747", "inverse-surface": "#e2e2e8", "on-surface-variant": "#c4c7c8", error: "#ffb4ab", "on-tertiary-fixed": "#250c48", "on-error": "#690005", "tertiary-container": "#ecdcff", "on-secondary-container": "#ebf6ff", "on-tertiary": "#3b245e", secondary: "#7cd0ff", primary: "#ffffff", "surface-container-high": "#282a2e", "secondary-fixed-dim": "#7cd0ff", "on-error-container": "#ffdad6", "tertiary-fixed": "#ecdcff", "surface-bright": "#37393e", "inverse-on-surface": "#2f3035", "on-primary": "#2f3131", "secondary-fixed": "#c4e7ff", "on-surface": "#e2e2e8", "surface-container-low": "#1a1c20", "primary-fixed-dim": "#c6c6c7", "tertiary-fixed-dim": "#d6baff", background: "#111317", "on-primary-container": "#636565", "inverse-primary": "#5d5f5f", "surface-container": "#1e2024", "surface-container-highest": "#333539", outline: "#8e9192"}, borderRadius: {DEFAULT: "0.5rem", lg: "1rem", xl: "1.5rem", full: "9999px"}, fontFamily: {headline: ["Manrope"], body: ["Inter"], label: ["Inter"], display: "Manrope"}}}};</script>
+<style>body { font-family: 'Inter', sans-serif; background-color: #111317; }
+        .font-manrope { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(124, 208, 255, 0.15), rgba(214, 186, 255, 0.15), rgba(255, 200, 124, 0.15), rgba(124, 255, 208, 0.15));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+        .rgb-glow-button {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 20px rgba(124, 208, 255, 0.1), 0 0 20px rgba(214, 186, 255, 0.1), 0 0 20px rgba(255, 200, 124, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .rgb-glow-button::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .rgb-glow-button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 30px rgba(124, 208, 255, 0.25), 0 0 30px rgba(214, 186, 255, 0.25), 0 0 30px rgba(255, 200, 124, 0.2);
+            transform: translateY(-1px);
+        }
+        .rgb-glow-button:hover::after {
+            opacity: 1;
+        }
+        .section-title-glow {
+            text-shadow: 0 0 20px rgba(124, 208, 255, 0.2), 0 0 40px rgba(214, 186, 255, 0.1);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .rgb-text-gradient {
+            background: linear-gradient(to right, #7cd0ff, #d6baff, #ffc87c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .rgb-border-gradient {
+            border-image: linear-gradient(to bottom, #7cd0ff, #d6baff, #ffc87c) 1;
+        }</style>
+</head>
+<body class="bg-surface text-on-surface antialiased overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#1e2024]/80 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.1)] flex justify-between items-center px-12 py-4 w-full max-w-none font-manrope font-light tracking-wide text-sm">
+<div class="text-xl font-light tracking-[0.2em] text-[#c6c6c7] uppercase">JobHunt AI</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-[#c6c6c7]/60 hover:text-[#c6c6c7] transition-colors" href="#">Landing</a>
+<a class="text-[#c6c6c7]/60 hover:text-[#c6c6c7] transition-colors" href="#">Dashboard</a>
+<a class="rgb-text-gradient font-medium border-b border-[#d6baff]/50 pb-1" href="#">Optimize</a>
+<a class="text-[#c6c6c7]/60 hover:text-[#c6c6c7] transition-colors" href="#">Cover Letter</a>
+</div>
+<div class="flex items-center space-x-6">
+<span class="material-symbols-outlined text-[#c6c6c7] cursor-pointer hover:bg-white/5 transition-all p-2 rounded-full" data-icon="settings">settings</span>
+<span class="material-symbols-outlined text-[#c6c6c7] cursor-pointer hover:bg-white/5 transition-all p-2 rounded-full" data-icon="account_circle">account_circle</span>
+</div>
+<div class="bg-gradient-to-r from-transparent via-[#7cd0ff]/20 via-[#d6baff]/20 via-[#ffc87c]/20 to-transparent h-[1px] w-full absolute bottom-0"></div>
+</nav>
+<!-- SideNavBar (Hidden on Mobile) -->
+<aside class="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-[#111317] border-r border-white/5 flex flex-col py-8 z-40 mt-16">
+<div class="px-8 mb-10">
+<div class="text-lg font-bold text-[#c6c6c7] font-manrope tracking-tight">The Concierge</div>
+<div class="text-xs text-[#c6c6c7]/40 font-manrope uppercase tracking-widest mt-1">Premium Tier</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center px-8 py-3 text-[#c6c6c7]/40 hover:text-[#c6c6c7] hover:bg-[#1e2024] transition-all group" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="dashboard">dashboard</span>
+<span class="font-manrope font-normal">Dashboard</span>
+</a>
+<a class="flex items-center px-8 py-3 text-on-surface bg-white/5 rounded-r-full border-l-2 border-[#d6baff] transition-all group" href="#">
+<span class="material-symbols-outlined mr-4 rgb-text-gradient" data-icon="auto_fix_high">auto_fix_high</span>
+<span class="font-manrope font-normal">Optimize</span>
+</a>
+<a class="flex items-center px-8 py-3 text-[#c6c6c7]/40 hover:text-[#c6c6c7] hover:bg-[#1e2024] transition-all group" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="description">description</span>
+<span class="font-manrope font-normal">Applications</span>
+</a>
+<a class="flex items-center px-8 py-3 text-[#c6c6c7]/40 hover:text-[#c6c6c7] hover:bg-[#1e2024] transition-all group" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="insights">insights</span>
+<span class="font-manrope font-normal">Analytics</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<button class="w-full py-3 rounded-xl rgb-glow-button text-on-surface text-sm font-manrope tracking-wide uppercase font-semibold">
+                Upgrade to Pro
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-24 pb-12 px-6 md:px-12 lg:px-20 min-h-screen">
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
+<!-- Left: Job Selection Rail -->
+<section class="lg:col-span-4 space-y-8">
+<header>
+<h1 class="text-4xl md:text-5xl font-manrope font-light tracking-tight text-on-surface mb-2">The Concierge.</h1>
+<p class="text-on-surface-variant font-light text-sm tracking-wide">Refining your narrative for the next big role.</p>
+</header>
+<div class="space-y-6">
+<h3 class="text-xs uppercase tracking-[0.2em] text-tertiary-fixed-dim font-semibold">Active Applications</h3>
+<div class="space-y-4 no-scrollbar">
+<!-- Job Item 1 -->
+<div class="glass-panel p-5 rounded-xl cursor-pointer hover:bg-surface-container-highest/30 transition-all border-l-2 border-transparent hover:border-secondary/30">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-manrope font-semibold text-on-surface">Senior UX Designer</h4>
+<span class="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full uppercase tracking-tighter">New</span>
+</div>
+<p class="text-sm text-on-surface-variant font-light">Linear • Remote</p>
+<div class="mt-4 flex items-center text-[11px] text-tertiary-fixed-dim" style="border-left: 2px solid transparent; border-image: linear-gradient(to bottom, #7cd0ff, #d6baff) 1;">
+<span class="material-symbols-outlined text-xs mr-1" data-icon="schedule">schedule</span>
+                                Saved 2h ago
+                            </div>
+</div>
+<!-- Job Item 2 (Active) -->
+<div class="p-5 rounded-xl cursor-pointer border-l-2 border-secondary shadow-[0_0_20px_rgba(124,208,255,0.05)] glass-panel" style="border-left: 2px solid transparent; border-image: linear-gradient(to bottom, #7cd0ff, #d6baff) 1;">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-manrope font-semibold text-on-surface">Product Strategist</h4>
+<span class="text-[10px] bg-tertiary/10 text-tertiary px-2 py-0.5 rounded-full uppercase tracking-tighter">Drafting</span>
+</div>
+<p class="text-sm text-on-surface-variant font-light">Vercel • San Francisco</p>
+<div class="mt-4 flex items-center text-[11px] rgb-text-gradient" style="border-left: 2px solid transparent; border-image: linear-gradient(to bottom, #7cd0ff, #d6baff) 1;">
+<span class="material-symbols-outlined text-xs mr-1" data-icon="task_alt">task_alt</span>
+                                Current Target
+                            </div>
+</div>
+<!-- Job Item 3 -->
+<div class="glass-panel p-5 rounded-xl cursor-pointer hover:bg-surface-container-highest/30 transition-all border-l-2 border-transparent hover:border-secondary/30">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-manrope font-semibold text-on-surface">Lead AI Researcher</h4>
+<span class="text-[10px] bg-on-surface-variant/10 text-on-surface-variant px-2 py-0.5 rounded-full uppercase tracking-tighter">Saved</span>
+</div>
+<p class="text-sm text-on-surface-variant font-light">Anthropic • Hybrid</p>
+<div class="mt-4 flex items-center text-[11px] text-on-surface-variant/60" style="border-left: 2px solid transparent; border-image: linear-gradient(to bottom, #7cd0ff, #d6baff) 1;">
+<span class="material-symbols-outlined text-xs mr-1" data-icon="calendar_month">calendar_month</span>
+                                Saved yesterday
+                            </div>
+</div>
+</div>
+<button class="w-full flex items-center justify-center py-4 text-xs font-manrope uppercase tracking-[0.2em] text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined mr-2 text-sm" data-icon="add">add</span>
+                        Import New Listing
+                    </button>
+</div>
+</section>
+<!-- Right: Cover Letter Generation Area -->
+<section class="lg:col-span-8 flex flex-col h-full space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="smart_toy">smart_toy</span>
+</div>
+<div>
+<h2 class="font-manrope text-lg font-medium text-on-surface">Letter Synthesis</h2>
+<p class="text-xs text-on-surface-variant">Powered by GPT-4 Vision • Specialized Professional Persona</p>
+</div>
+</div>
+<div class="flex space-x-2">
+<button class="px-4 py-2 text-xs font-manrope tracking-wider text-on-surface-variant hover:text-on-surface transition-colors flex items-center">
+<span class="material-symbols-outlined mr-2 text-sm" data-icon="history">history</span>
+                            Versions
+                        </button>
+<button class="px-4 py-2 text-xs font-manrope tracking-wider text-on-surface-variant hover:text-on-surface transition-colors flex items-center">
+<span class="material-symbols-outlined mr-2 text-sm" data-icon="settings_input_component">settings_input_component</span>
+                            Tone
+                        </button>
+</div>
+</div>
+<!-- Main Letter Area -->
+<div class="relative group flex-grow">
+<div class="absolute -top-10 -right-10 w-64 h-64 bg-secondary/5 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="absolute -bottom-10 -left-10 w-64 h-64 bg-tertiary/5 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="glass-panel w-full h-[600px] lg:h-[700px] rounded-2xl p-10 flex flex-col shadow-2xl relative overflow-hidden">
+<textarea class="w-full h-full bg-transparent border-none focus:ring-0 text-on-surface font-light leading-relaxed text-base resize-none no-scrollbar placeholder:text-on-surface-variant/30 font-body" placeholder="Select a job to the left or paste your details here to begin the synthesis process..."></textarea>
+<!-- Floating HUD within the textarea -->
+<div class="absolute bottom-8 right-8 flex items-center space-x-4">
+<div class="flex space-x-2 mr-4 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined p-2 text-on-surface-variant hover:text-secondary cursor-pointer" data-icon="copy_all">copy_all</span>
+<span class="material-symbols-outlined p-2 text-on-surface-variant hover:text-secondary cursor-pointer" data-icon="download">download</span>
+<span class="material-symbols-outlined p-2 text-on-surface-variant hover:text-secondary cursor-pointer" data-icon="share">share</span>
+</div>
+<button class="rgb-glow-button text-on-surface px-8 py-3 rounded-full font-manrope font-semibold tracking-wide flex items-center active:scale-95">
+<span class="material-symbols-outlined mr-2 text-lg rgb-text-gradient" data-icon="auto_fix_high" data-weight="fill">auto_fix_high</span>
+                                Generate
+                            </button>
+</div>
+</div>
+</div>
+<!-- Footer Stats / Meta -->
+<div class="grid grid-cols-3 gap-6">
+<div class="glass-panel p-4 rounded-xl">
+<div class="text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">ATS Match</div>
+<div class="text-xl font-manrope rgb-text-gradient">94%</div>
+</div>
+<div class="glass-panel p-4 rounded-xl">
+<div class="text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">Tone Analysis</div>
+<div class="text-xl font-manrope text-on-surface">Confident</div>
+</div>
+<div class="glass-panel p-4 rounded-xl">
+<div class="text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">Keywords</div>
+<div class="text-xl font-manrope text-tertiary">12 Found</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Visual Accents -->
+<div class="fixed top-1/4 right-0 w-[500px] h-[500px] bg-gradient-to-br from-[#7cd0ff]/5 via-[#d6baff]/5 to-[#ffc87c]/5 rounded-full blur-[120px] -z-10 opacity-40"></div>
+<div class="fixed bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-[#d6baff]/5 via-[#ffc87c]/5 to-[#7cd0ff]/5 rounded-full blur-[150px] -z-10 opacity-30"></div>
+</body></html>

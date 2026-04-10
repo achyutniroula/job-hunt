@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p stitch_ref)",
+      "Bash(unzip -o \"stitch \\(1\\).zip\" -d stitch_ref)",
+      "Bash(python -c ':*)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python.exe -m pip install beautifulsoup4 lxml -q)",
+      "Bash(.venv/Scripts/python.exe -c ':*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(xargs grep:*)",
+      "Bash(.venv/Scripts/python -c \"import jobspy; help\\(jobspy.scrape_jobs\\)\")",
+      "Bash(.venv/Scripts/python -c ':*)"
+    ]
+  }
+}

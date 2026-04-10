@@ -1,0 +1,355 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: #111317;
+    color: #e0dbd2;
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Headings stay brighter — not vintage-tinted */
+  h1, h2, h3, h4, h5, h6 {
+    color: #edeae4;
+  }
+  ::selection { background-color: rgba(198,198,199,0.2); color: #e0dbd2; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #111317; }
+  ::-webkit-scrollbar-thumb { background: #333539; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #444748; }
+}
+
+@layer components {
+
+  /* ─────────────────────────────────────────────
+     GLASS CARD  — core surface primitive
+     ───────────────────────────────────────────── */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-radius: 1rem;
+    position: relative;
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1),
+                box-shadow  0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+  /* RGB gradient ghost border */
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(124,208,255,0.10),
+      rgba(214,186,255,0.10),
+      rgba(255,200,124,0.08),
+      rgba(124,255,208,0.06)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:         linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  /* Reflective top-left highlight */
+  .glass-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 50%);
+    pointer-events: none;
+  }
+  /* Hover lift */
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.35),
+      0 0 0 1px rgba(198,198,199,0.08);
+  }
+  .glass-card:hover::before {
+    opacity: 1.6; /* intensify border glow on hover */
+  }
+  /* Static panels (forms, editor areas) — no lift */
+  .glass-card-static {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-radius: 1rem;
+    position: relative;
+  }
+  .glass-card-static::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(124,208,255,0.10),
+      rgba(214,186,255,0.10),
+      rgba(255,200,124,0.08)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:         linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  .glass-card-static::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 50%);
+    pointer-events: none;
+  }
+
+  /* ─────────────────────────────────────────────
+     BTN-PRIMARY  — RGB glow CTA
+     ───────────────────────────────────────────── */
+  .btn-primary {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    color: #e2e2e8;
+    font-family: "Manrope", sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    border-radius: 9999px;
+    padding: 0.625rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: none;
+    /* Subtle box-shadow glow base */
+    box-shadow:
+      0 2px 12px rgba(0,0,0,0.3),
+      0 0 16px rgba(124,208,255,0.06),
+      0 0 16px rgba(214,186,255,0.06);
+    transition:
+      transform   0.3s cubic-bezier(0.4,0,0.2,1),
+      box-shadow  0.3s cubic-bezier(0.4,0,0.2,1),
+      background  0.3s ease;
+  }
+  /* RGB gradient ghost border */
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(124,208,255,0.35),
+      rgba(214,186,255,0.30),
+      rgba(255,200,124,0.25),
+      rgba(124,208,255,0.35)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:         linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  /* Inner shine sweep on hover */
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+  .btn-primary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow:
+      0 6px 24px rgba(0,0,0,0.35),
+      0 0 28px rgba(124,208,255,0.18),
+      0 0 28px rgba(214,186,255,0.15),
+      0 0 20px rgba(255,200,124,0.12);
+  }
+  .btn-primary:hover::after { opacity: 1; }
+  .btn-primary:active  { transform: scale(0.97); }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ─────────────────────────────────────────────
+     BTN-GHOST  — secondary outlined button
+     ───────────────────────────────────────────── */
+  .btn-ghost {
+    color: #c4c7c8;
+    font-family: "Inter", sans-serif;
+    font-weight: 400;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    position: relative;
+    overflow: hidden;
+    border: none;
+    /* Base subtle border via box-shadow */
+    box-shadow: inset 0 0 0 1px rgba(68,71,72,0.55);
+    transition:
+      transform  0.25s cubic-bezier(0.4,0,0.2,1),
+      box-shadow 0.25s cubic-bezier(0.4,0,0.2,1),
+      color      0.2s ease,
+      background 0.2s ease;
+  }
+  /* RGB gradient ghost border */
+  .btn-ghost::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(124,208,255,0.0),
+      rgba(214,186,255,0.0),
+      rgba(255,200,124,0.0)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:         linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: background 0.3s ease;
+  }
+  .btn-ghost:hover {
+    color: #e2e2e8;
+    background: rgba(255,255,255,0.04);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 0 0 1px rgba(198,198,199,0.18),
+      0 4px 14px rgba(0,0,0,0.2);
+  }
+  /* RGB border appears on hover */
+  .btn-ghost:hover::before {
+    background: linear-gradient(
+      135deg,
+      rgba(124,208,255,0.22),
+      rgba(214,186,255,0.18),
+      rgba(255,200,124,0.14)
+    );
+  }
+  .btn-ghost:active  { transform: scale(0.97); }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ─────────────────────────────────────────────
+     INPUT
+     ───────────────────────────────────────────── */
+  .input-base {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(68,71,72,0.5);
+    border-radius: 0.5rem;
+    padding: 0.625rem 1rem;
+    color: #e2e2e8;
+    font-family: "Inter", sans-serif;
+    font-size: 0.875rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .input-base::placeholder { color: rgba(142,145,146,0.5); }
+  .input-base:focus {
+    border-color: rgba(198,198,199,0.4);
+    box-shadow: 0 0 0 2px rgba(198,198,199,0.07);
+    background: rgba(255,255,255,0.05);
+  }
+  .input-base:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ─────────────────────────────────────────────
+     BADGE / CHIP
+     ───────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    background: rgba(51,53,57,0.4);
+    border: 1px solid rgba(68,71,72,0.3);
+    color: #c4c7c8;
+  }
+  .score-badge { @apply badge font-mono; }
+}
+
+/* ── RGB text gradient ── */
+.rgb-text-gradient {
+  background: linear-gradient(to right, #7cd0ff, #d6baff, #ffc87c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Gray metallic text gradient ── */
+.silver-gradient {
+  background: linear-gradient(to right, #e2e2e8, #c6c6c7, #9a9da0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Section glow ── */
+.section-glow {
+  text-shadow: 0 0 20px rgba(198,198,199,0.15), 0 0 40px rgba(214,186,255,0.08);
+}
+
+/* ── No scrollbar ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Skeleton ── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #1a1c20 25%, #1e2024 50%, #1a1c20 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+/* ── Ambient bg orbs ── */
+.orb-blue {
+  position: fixed; top: 25%; right: -5%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(124,208,255,0.05) 0%, rgba(214,186,255,0.03) 50%, transparent 70%);
+  border-radius: 50%; filter: blur(80px);
+  pointer-events: none; z-index: 0;
+}
+.orb-purple {
+  position: fixed; bottom: -10%; left: -5%;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(214,186,255,0.04) 0%, rgba(255,200,124,0.02) 50%, transparent 70%);
+  border-radius: 50%; filter: blur(100px);
+  pointer-events: none; z-index: 0;
+}
