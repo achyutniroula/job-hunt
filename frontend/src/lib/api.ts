@@ -2,6 +2,7 @@ import axios from "axios";
 import type {
   ATSOptimizeResponse,
   CoverLetterResponse,
+  FetchUrlResponse,
   Job,
   ParsedResume,
   ResumeUploadResponse,
@@ -70,6 +71,10 @@ export const optimizeResume = (body: {
   resume_filename: string;
   job_id?: string;
   job_description?: string;
+  previous_optimized?: string;
+  previous_improvements?: string[];
+  github_urls?: string[];
+  linkedin_url?: string;
 }): Promise<ATSOptimizeResponse> =>
   api.post("/generate/optimize", body).then((r) => r.data);
 
@@ -82,5 +87,13 @@ export const generateCoverLetter = (body: {
   extra_notes?: string;
 }): Promise<CoverLetterResponse> =>
   api.post("/generate/cover-letter", body).then((r) => r.data);
+
+export const fetchJobUrl = (url: string): Promise<FetchUrlResponse> =>
+  api.post("/generate/fetch-url", { url }).then((r) => r.data);
+
+export const downloadCoverLetterDocx = (text: string, company: string): Promise<Blob> =>
+  api
+    .post("/generate/cover-letter-docx", { text, company }, { responseType: "blob" })
+    .then((r) => r.data);
 
 export default api;

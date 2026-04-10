@@ -38,6 +38,8 @@ STRICT RULES:
 2. Never fabricate achievements, companies, or credentials.
 3. Tailor specifically to the job and company — do NOT write a generic letter.
 4. Total length: 200-300 words. No more.
+5. NEVER use dashes of any kind — no em-dashes (—), en-dashes (–), or standalone hyphens used as separators. \
+Use commas or periods instead.
 """
 
 _USER_TEMPLATE = """\
@@ -96,6 +98,11 @@ async def generate_cover_letter(
         raise
 
     cover_letter = message.content[0].text.strip() if message.content else ""
+    # Strip em/en-dashes and standalone separator hyphens
+    import re
+    cover_letter = re.sub(r"[—–]", ",", cover_letter)
+    cover_letter = re.sub(r"(?<!\w)-(?!\w)", ",", cover_letter)
+    cover_letter = re.sub(r",\s*,", ",", cover_letter)
     word_count = len(cover_letter.split())
 
     return CoverLetterResponse(

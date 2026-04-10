@@ -75,7 +75,7 @@ export default function JobCard({ job, resumeSkills = [] }: JobCardProps) {
   const [hovered,      setHovered]      = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const navigate = useNavigate();
-  const { setSelectedJobId, resumeFilename, parsedResume } = useAppStore();
+  const { setSelectedJobId, setSelectedJob, resumeFilename, parsedResume } = useAppStore();
   const salary   = formatSalary(job);
   const dateInfo = formatDate(job.posted_at);
 
@@ -313,11 +313,11 @@ export default function JobCard({ job, resumeSkills = [] }: JobCardProps) {
           )}
           {resumeFilename && (
             <>
-              <button onClick={() => { setSelectedJobId(job.id); navigate("/optimize"); }}
+              <button onClick={() => { setSelectedJobId(job.id); setSelectedJob(job); navigate("/optimize"); }}
                 className="btn-ghost text-xs px-3 py-1.5">
                 <FileText className="w-3 h-3" />Optimize Resume
               </button>
-              <button onClick={() => { setSelectedJobId(job.id); navigate("/cover-letter"); }}
+              <button onClick={() => { setSelectedJobId(job.id); setSelectedJob(job); navigate("/cover-letter"); }}
                 className="btn-ghost text-xs px-3 py-1.5">
                 <Mail className="w-3 h-3" />Cover Letter
               </button>

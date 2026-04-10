@@ -40,6 +40,7 @@ class ElutaScraper(BaseScraper):
         location: str,
         remote_only: bool = False,
         max_results: int = 25,
+        distance_km: int = 100,
     ) -> list[RawJob]:
         results: list[RawJob] = []
         page = 1

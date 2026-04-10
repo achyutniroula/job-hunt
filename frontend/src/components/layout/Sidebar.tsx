@@ -24,7 +24,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex fixed left-0 top-[57px] w-64 flex-col py-8 z-40"
+      className="hidden md:flex fixed left-0 top-[57px] w-72 flex-col py-8 z-40"
       style={{ height: "calc(100vh - 57px)", background: "#111317", borderRight: "1px solid rgba(255,255,255,0.04)" }}
     >
       {/* Nav */}
@@ -39,7 +39,7 @@ export default function Sidebar() {
               key={href}
               to={resolvedHref}
               className={clsx(
-                "flex items-center px-8 py-3 transition-all text-sm group",
+                "flex items-center px-8 py-3.5 transition-all text-sm group",
                 active
                   ? "text-[#e2e2e8] bg-white/[0.04]"
                   : "text-[#c6c6c7]/40 hover:text-[#c6c6c7] hover:bg-[#1e2024]"
@@ -57,12 +57,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Upgrade CTA */}
-      <div className="px-6 mt-auto">
-        <button className="btn-primary w-full py-3 text-xs tracking-widest uppercase" style={{ borderRadius: "0.75rem" }}>
-          Upgrade to Pro
-        </button>
-      </div>
     </aside>
   );
 }

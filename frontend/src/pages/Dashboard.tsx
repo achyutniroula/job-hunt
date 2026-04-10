@@ -132,7 +132,7 @@ export default function Dashboard() {
   return (
     <main className="pt-20 pb-16 px-6 max-w-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 flex-wrap gap-4 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-4 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate("/")} className="text-text-muted hover:text-text-primary transition-colors p-2 rounded-lg hover:bg-bg-elevated">
             <ArrowLeft className="w-4 h-4" />
@@ -166,7 +166,7 @@ export default function Dashboard() {
 
       {/* IT Mode banner (visible on mobile where sidebar is hidden) */}
       {itMode && (
-        <div className="max-w-6xl mx-auto mb-4 lg:hidden">
+        <div className="max-w-7xl mx-auto mb-4 lg:hidden">
           <div
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs"
             style={{ background: "rgba(124,208,255,0.06)", border: "1px solid rgba(124,208,255,0.2)", color: "#7cd0ff" }}
@@ -215,7 +215,7 @@ export default function Dashboard() {
 
       {/* Results — show during running (partial) and done */}
       {(session?.status === "done" || (session?.status === "running" && jobs.length > 0)) && (
-        <div className="flex gap-6 max-w-6xl mx-auto">
+        <div className="flex gap-6 max-w-7xl mx-auto">
           {/* Filter sidebar */}
           <aside className="w-52 shrink-0 hidden lg:block">
             <div className="sticky top-24 space-y-6">

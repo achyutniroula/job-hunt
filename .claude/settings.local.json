@@ -11,7 +11,12 @@
       "Bash(npm install:*)",
       "Bash(xargs grep:*)",
       "Bash(.venv/Scripts/python -c \"import jobspy; help\\(jobspy.scrape_jobs\\)\")",
-      "Bash(.venv/Scripts/python -c ':*)"
+      "Bash(.venv/Scripts/python -c ':*)",
+      "Bash(npx tsc:*)",
+      "Bash(python -c \"from app.scrapers.jobspy_scraper import IndeedScraper; print\\('OK'\\)\")",
+      "Bash(python -c \"from app.services.github_ingestion import GitHubProfile; print\\('OK'\\)\")",
+      "Bash(python -c \"from app.services.skill_inference import UserSkillProfile; print\\('OK'\\)\")",
+      "Bash(pip install:*)"
     ]
   }
 }

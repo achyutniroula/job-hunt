@@ -48,6 +48,7 @@ async def run_scrape_session(
     location: str,
     remote_only: bool = False,
     boards: list[str] | None = None,
+    distance_km: int = 100,
 ) -> int:
     """
     Run all scrapers concurrently. Each board's results are written to DB
@@ -79,7 +80,7 @@ async def run_scrape_session(
             logger.info("[%s] scraping '%s' in '%s'", board_name, keywords, location)
             try:
                 jobs = await asyncio.wait_for(
-                    scraper.scrape(keywords, location, remote_only, max_per_board),
+                    scraper.scrape(keywords, location, remote_only, max_per_board, distance_km),
                     timeout=60.0,
                 )
                 logger.info("[%s] returned %d jobs", board_name, len(jobs))

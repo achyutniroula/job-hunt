@@ -21,7 +21,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="relative z-10 flex">
         {!isLanding && <Sidebar />}
-        <div className={!isLanding ? "flex-1 md:ml-64" : "flex-1"}>
+        <div className={!isLanding ? "flex-1 md:ml-72" : "flex-1"}>
           {children}
         </div>
       </div>

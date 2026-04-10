@@ -52,12 +52,33 @@ export interface ResumeUploadResponse {
   parsed: ParsedResume;
 }
 
+export interface ChangeItem {
+  category: "verb" | "keyword" | "title" | "skill" | "metric" | "reframe" | "removed" | "restructure";
+  text: string;
+}
+
 export interface ATSOptimizeResponse {
   original_text: string;
   optimized_text: string;
+  latex_text: string | null;
   changes_summary: string[];
+  change_items: ChangeItem[];
   ats_score_before: number | null;
   ats_score_after: number | null;
+  matched_keywords: string[];
+  missing_keywords: string[];
+  improvements: string[];
+  transparency_report: string;
+  interview_prep: string;
+  gap_analysis: string;
+  linkedin_unavailable: boolean;
+}
+
+export interface FetchUrlResponse {
+  title: string | null;
+  company: string | null;
+  description: string;
+  source: string;
 }
 
 export interface CoverLetterResponse {
@@ -70,4 +91,6 @@ export interface ScrapeRequest {
   location: string;
   remote_only: boolean;
   boards?: string[] | null;
+  city?: string;
+  distance_km?: number;
 }

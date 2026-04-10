@@ -121,13 +121,13 @@ class JobSpyScraper(BaseScraper):
         location: str,
         remote_only: bool = False,
         max_results: int = 25,
+        distance_km: int = 100,
     ) -> list[RawJob]:
         jobspy_site = _BOARD_MAP.get(self.board_key)
         if not jobspy_site:
             return []
 
         try:
-            # jobspy is synchronous; run in thread pool
             jobs = await asyncio.to_thread(
                 self._sync_scrape,
                 jobspy_site,
@@ -135,6 +135,7 @@ class JobSpyScraper(BaseScraper):
                 location,
                 remote_only,
                 max_results,
+                distance_km,
             )
             return jobs
         except Exception as exc:
@@ -148,8 +149,12 @@ class JobSpyScraper(BaseScraper):
         location: str,
         remote_only: bool,
         max_results: int,
+        distance_km: int = 100,
     ) -> list[RawJob]:
         from jobspy import scrape_jobs  # type: ignore
+
+        if site == "indeed":
+            return self._sync_scrape_indeed(keywords, location, remote_only, max_results, distance_km)
 
         df = scrape_jobs(
             site_name=[site],
@@ -170,6 +175,57 @@ class JobSpyScraper(BaseScraper):
             except Exception as e:
                 logger.debug("Row parse error [%s]: %s", self.board_key, e)
         return results
+
+    def _sync_scrape_indeed(
+        self,
+        keywords: str,
+        location: str,
+        remote_only: bool,
+        max_results: int,
+        distance_km: int = 100,
+    ) -> list[RawJob]:
+        """Paginated Indeed scrape — runs offset batches to maximise coverage."""
+        from jobspy import scrape_jobs  # type: ignore
+
+        distance_miles = max(1, int(distance_km * 0.621371))
+        batch = min(max_results, 30)
+        seen_urls: set[str] = set()
+        results: list[RawJob] = []
+        offsets = [0, 25, 50, 75] if max_results > 25 else [0]
+
+        for offset in offsets:
+            if len(results) >= max_results:
+                break
+            try:
+                df = scrape_jobs(
+                    site_name=["indeed"],
+                    search_term=keywords,
+                    location=location,
+                    results_wanted=batch,
+                    is_remote=remote_only,
+                    country_indeed="Canada",
+                    distance=distance_miles,
+                    offset=offset,
+                )
+            except Exception as exc:
+                logger.warning("Indeed offset=%d failed: %s", offset, exc)
+                break
+
+            if df is None or df.empty:
+                break
+
+            for _, row in df.iterrows():
+                try:
+                    raw = _jobspy_row_to_raw(row.to_dict(), self.board_key)
+                    url_key = raw.job_url or f"{raw.title}|{raw.company}"
+                    if url_key in seen_urls:
+                        continue
+                    seen_urls.add(url_key)
+                    results.append(raw)
+                except Exception as e:
+                    logger.debug("Indeed row parse error: %s", e)
+
+        return results[:max_results]
 
 
 # Convenience: one instance per supported board

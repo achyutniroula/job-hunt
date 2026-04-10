@@ -52,7 +52,9 @@ class ScrapeRequest(BaseModel):
     keywords: str = Field(..., min_length=1, max_length=256)
     location: str = Field(default="Canada", max_length=128)
     remote_only: bool = False
-    boards: list[str] | None = None  # None = all boards
+    boards: list[str] | None = None
+    city: str | None = None
+    distance_km: int = Field(default=100, ge=25, le=500)
 
 
 class ScrapeSessionRead(BaseModel):

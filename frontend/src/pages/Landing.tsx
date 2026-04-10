@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, MapPin, Wifi, ChevronDown } from "lucide-react";
+import { Search, Wifi, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 import ResumeDropzone from "@/components/ResumeDropzone";
 import Spinner from "@/components/ui/Spinner";
+import CitySelector from "@/components/CitySelector";
+import DistanceSlider from "@/components/DistanceSlider";
 import { startScrape } from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 
 const ALL_BOARDS = ["linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank"];
+
 const BOARD_LABELS: Record<string, string> = {
   linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor",
   ziprecruiter: "ZipRecruiter", google: "Google Jobs",
@@ -25,7 +28,9 @@ export default function Landing() {
   const { setActiveSession } = useAppStore();
 
   const [keywords,       setKeywords]       = useState("");
-  const [location,       setLocation]       = useState("Canada");
+  const [city,           setCity]           = useState("Toronto");
+  const [cityProvince,   setCityProvince]   = useState("Ontario");
+  const [distanceKm,     setDistanceKm]     = useState(100);
   const [remoteOnly,     setRemoteOnly]     = useState(false);
   const [selectedBoards, setSelectedBoards] = useState<string[]>(ALL_BOARDS);
   const [showBoardPicker,setShowBoardPicker]= useState(false);
@@ -39,11 +44,14 @@ export default function Landing() {
     if (selectedBoards.length === 0) { toast.error("Select at least one job board"); return; }
     setLoading(true);
     try {
+      const resolvedLocation = remoteOnly ? "Canada" : `${city}, ${cityProvince}, Canada`;
       const session = await startScrape({
         keywords: keywords.trim(),
-        location: remoteOnly ? "Canada" : location.trim() || "Canada",
+        location: resolvedLocation,
         remote_only: remoteOnly,
         boards: selectedBoards,
+        city: remoteOnly ? undefined : city,
+        distance_km: remoteOnly ? undefined : distanceKm,
       });
       setActiveSession(session);
       navigate(`/dashboard/${session.id}`);
@@ -97,45 +105,35 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Location + Remote */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-[10px] font-manrope font-semibold text-text-muted uppercase tracking-[0.15em] mb-2 block">
-                Location
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input
-                  type="text"
-                  className="input-base pl-10"
-                  placeholder="Toronto, ON  or  Canada"
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  disabled={remoteOnly}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col justify-end">
-              <label className="text-[10px] font-manrope font-semibold text-text-muted uppercase tracking-[0.15em] mb-2 block">
-                Remote
-              </label>
-              <button
-                onClick={() => setRemoteOnly(v => !v)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-inter transition-all duration-200 ${
-                  remoteOnly
-                    ? "text-success"
-                    : "text-text-muted hover:text-text-secondary"
-                }`}
-                style={{
-                  background: remoteOnly ? "rgba(74,222,128,0.08)" : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${remoteOnly ? "rgba(74,222,128,0.25)" : "rgba(68,71,72,0.5)"}`,
-                }}
-              >
-                <Wifi className="w-4 h-4" />
-                Remote only
-              </button>
-            </div>
+          {/* Remote toggle */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => setRemoteOnly(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-inter transition-all duration-200 ${
+                remoteOnly ? "text-success" : "text-text-muted hover:text-text-secondary"
+              }`}
+              style={{
+                background: remoteOnly ? "rgba(74,222,128,0.08)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${remoteOnly ? "rgba(74,222,128,0.25)" : "rgba(68,71,72,0.5)"}`,
+              }}
+            >
+              <Wifi className="w-4 h-4" />
+              Remote only
+            </button>
           </div>
+
+          {/* City selector */}
+          <CitySelector
+            city={remoteOnly ? "Remote" : city}
+            onChange={(c, p) => { setCity(c); setCityProvince(p); }}
+          />
+
+          {/* Distance slider */}
+          <DistanceSlider
+            value={distanceKm}
+            onChange={setDistanceKm}
+            disabled={remoteOnly || city === "Remote"}
+          />
 
           {/* Board picker */}
           <div>

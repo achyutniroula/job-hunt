@@ -1,0 +1,189 @@
+%-------------------------
+% Resume in Latex
+% Author : Harshibar
+% Based off of: https://github.com/jakeryang/resume
+% License : MIT
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+% only for pdflatex
+% \input{glyphtounicode}
+
+% fontawesome
+\usepackage{fontawesome5}
+
+% fixed width
+\usepackage[scale=0.90,lf]{FiraMono}
+
+% light-grey
+\definecolor{light-grey}{gray}{0.83}
+\definecolor{dark-grey}{gray}{0.3}
+\definecolor{text-grey}{gray}{.08}
+
+\DeclareRobustCommand{\ebseries}{\fontseries{eb}\selectfont}
+\DeclareTextFontCommand{\texteb}{\ebseries}
+
+% custom underline
+\usepackage{contour}
+\usepackage[normalem]{ulem}
+\renewcommand{\ULdepth}{1.8pt}
+\contourlength{0.8pt}
+\newcommand{\myuline}[1]{%
+  \uline{\phantom{#1}}%
+  \llap{\contour{white}{#1}}%
+}
+
+% custom font: helvetica-style
+\usepackage{tgheros}
+\renewcommand*\familydefault{\sfdefault}
+%% Only if the base font of the document is to be sans serif
+\usepackage[T1]{fontenc}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{0in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% sans serif sections
+\titleformat{\section}{
+    \bfseries \vspace{2pt} \raggedright \large
+}{}{0em}{}[\color{light-grey} {\titlerule[2pt]} \vspace{-4pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-1pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & {\color{dark-grey}\small #2}\vspace{1pt}\\
+      \textit{#3} & {\color{dark-grey} \small #4}\\
+    \end{tabular*}\vspace{-4pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+      #1 & {\color{dark-grey}} \\
+    \end{tabular*}\vspace{-4pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{0pt}}
+
+\color{text-grey}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge Achyut Niroula} \\ \vspace{5pt}
+    \small
+    \faPhone* \texttt{(249) 358-0947} $|$
+    \faEnvelope \hspace{2pt} \texttt{niroula.achyut17@gmail.com} $|$
+    \faLinkedin \hspace{2pt} \href{https://linkedin.com/in/achyut-niroula}{\myuline{linkedin.com/in/achyut-niroula}} $|$
+    \faGithub \hspace{2pt} \href{https://github.com/achyutniroula}{\myuline{github.com/achyutniroula}}
+    \\ \vspace{-3pt}
+\end{center}
+
+%-----------EDUCATION-----------
+\section{EDUCATION}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Nipissing University}{Expected May 2026}
+      {B.Sc. Honours Specialization in Computer Science \textnormal{$|$ GPA: 3.7/4.0}}{North Bay, ON}
+  \resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------
+\section{EXPERIENCE}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {Nipissing University}{May 2023 -- Aug 2025}
+      {Research Assistant}{North Bay, ON}
+      \resumeItemListStart
+        \resumeItem{Designed and delivered a production-ready faculty website, building responsive frontend layouts and reusable UI components using HTML5, CSS3, and JavaScript with a focus on usability and accessibility}
+        \resumeItem{Integrated frontend components with a database-backed CMS backend, collaborating directly with stakeholders to gather requirements and iterate on design across the full software development lifecycle}
+        \resumeItem{Maintained and version-controlled codebase using Git, ensuring clean, modular, and maintainable code organization}
+      \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{PROJECTS}
+    \resumeSubHeadingListStart
+
+      \resumeProjectHeading
+          {\textbf{Multimodal Video Understanding Platform} $|$ \emph{Python, FastAPI, React, AWS (S3/SQS/EC2/DynamoDB), Docker}}{}
+          \resumeItemListStart
+            \resumeItem{Architected a cloud-native video analytics pipeline on AWS integrating 8+ neural models, fusing vision, depth, motion, and audio signals into a unified per-frame scene representation, optimized for performance and scalability via containerized, stateless inference workers}
+            \resumeItem{Engineered an event-driven inference worker (S3 $\rightarrow$ SQS $\rightarrow$ EC2 GPU) with FastAPI RESTful APIs and WebSocket integration, delivering real-time overlays and per-frame confidence scores synced to interactive video playback}
+            \resumeItem{Integrated Claude API for structured narrative generation via prompt engineering, assembling multi-frame coherent scene summaries from timestamped track groupings and audio transcriptions}
+          \resumeItemListEnd
+
+      \resumeProjectHeading
+          {\textbf{Cloud Chat -- Distributed Real-Time Messaging System} $|$ \emph{Java, Firebase, WebSocket, Maven}}{}
+          \resumeItemListStart
+            \resumeItem{Architected a scalable distributed messaging platform on Firebase with multi-region replication, WebSocket-based synchronization, and role-based access control; designed a hierarchical NoSQL schema with timestamp-based ordering and conflict resolution for concurrent writes}
+          \resumeItemListEnd
+
+      \resumeProjectHeading
+          {\textbf{Niroula's Landscaping -- Cloud Inventory Tracker} $|$ \emph{Flask, Firebase, Google Cloud Run, Docker}}{}
+          \resumeItemListStart
+            \resumeItem{Engineered a serverless full-stack inventory management system on Google Cloud Run with Firebase Realtime Database, three-tier role-based access control, Cloudinary CDN image processing, and Chart.js analytics dashboards, containerized via Docker with auto-scaling across 0--10 instances}
+          \resumeItemListEnd
+
+    \resumeSubHeadingListEnd
+
+%-----------SKILLS-----------
+\section{TECHNICAL SKILLS}
+ \begin{itemize}[leftmargin=0in, label={}]
+    \small{\item{
+     \textbf{Languages} {: Java, Python, JavaScript, TypeScript, C++, SQL}\vspace{2pt} \\
+     \textbf{Frameworks \& Libraries} {: React, Vue.js, Next.js, Flask, Spring Boot, Node.js, Express, Angular, PyTorch, TensorFlow, Chart.js}\vspace{2pt} \\
+     \textbf{Cloud \& DevOps} {: AWS (S3, SQS, EC2, DynamoDB, Cognito), Google Cloud Platform, Docker, Maven, Git}\vspace{2pt} \\
+     \textbf{Databases} {: PostgreSQL, MySQL, MongoDB, Firebase Realtime Database} \\
+     \textbf{Other} {: REST APIs, WebSockets, Linux, Full Software Development Lifecycle (SDLC)}
+    }}
+ \end{itemize}
+
+%-------------------------------------------
+\end{document}

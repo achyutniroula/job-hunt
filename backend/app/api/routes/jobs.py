@@ -50,7 +50,7 @@ async def start_scrape(
     session = ScrapeSession(
         id=str(uuid.uuid4()),
         keywords=body.keywords,
-        location=body.location,
+        location=body.city or body.location,
         remote_only=body.remote_only,
         boards=json.dumps(body.boards) if body.boards else None,
         status="pending",
@@ -60,13 +60,15 @@ async def start_scrape(
     await db.refresh(session)
 
     # Run scrape asynchronously
+    resolved_location = body.city or body.location
     background_tasks.add_task(
         _scrape_in_background,
         session_id=session.id,
         keywords=body.keywords,
-        location=body.location,
+        location=resolved_location,
         remote_only=body.remote_only,
         boards=body.boards,
+        distance_km=body.distance_km,
     )
 
     return _session_to_schema(session)
@@ -78,6 +80,7 @@ async def _scrape_in_background(
     location: str,
     remote_only: bool,
     boards: list[str] | None,
+    distance_km: int = 100,
 ):
     """Background task: orchestrator manages its own DB sessions per board."""
     from app.core.database import AsyncSessionLocal
@@ -89,6 +92,7 @@ async def _scrape_in_background(
             location=location,
             remote_only=remote_only,
             boards=boards,
+            distance_km=distance_km,
         )
     except Exception as exc:
         logger.error("Scrape session %s failed: %s", session_id, exc)

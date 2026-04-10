@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ParsedResume, ScrapeSession } from "@/types";
+import type { Job, ParsedResume, ScrapeSession } from "@/types";
 
 interface AppState {
   // Resume
@@ -16,6 +16,10 @@ interface AppState {
   // Selected job (for optimize / cover letter)
   selectedJobId: string | null;
   setSelectedJobId: (id: string | null) => void;
+
+  // Full selected job object (for context display)
+  selectedJob: Job | null;
+  setSelectedJob: (job: Job | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -32,12 +36,16 @@ export const useAppStore = create<AppState>()(
 
       selectedJobId: null,
       setSelectedJobId: (id) => set({ selectedJobId: id }),
+
+      selectedJob: null,
+      setSelectedJob: (job) => set({ selectedJob: job }),
     }),
     {
       name: "jobhunt-store",
       partialize: (state) => ({
         resumeFilename: state.resumeFilename,
         parsedResume: state.parsedResume,
+        selectedJob: state.selectedJob,
       }),
     }
   )

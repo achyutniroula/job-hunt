@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Scraping
     scraper_max_workers: int = 6
     scraper_rate_limit_delay: float = 2.0
-    scraper_max_results_per_board: int = 25
+    scraper_max_results_per_board: int = 30
     default_location: str = "Canada"
 
     # Uploads
