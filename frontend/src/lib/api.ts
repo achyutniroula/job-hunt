@@ -96,4 +96,76 @@ export const downloadCoverLetterDocx = (text: string, company: string): Promise<
     .post("/generate/cover-letter-docx", { text, company }, { responseType: "blob" })
     .then((r) => r.data);
 
+// ── Interview ─────────────────────────────────────────────────────────────────
+
+export const createInterviewSession = (body: {
+  job_title: string;
+  job_description: string;
+  company_name: string;
+  resume_text: string;
+  github_url?: string;
+  salary_info?: string;
+  location?: string;
+  seniority?: string;
+}) => api.post("/interview/session", body).then((r) => r.data);
+
+export const getInterviewGitHub = (sessionId: string) =>
+  api.get(`/interview/session/${sessionId}/github`).then((r) => r.data);
+
+export const explainGitHubRepo = (sessionId: string, repoName: string) =>
+  api.get(`/interview/session/${sessionId}/github/${repoName}/explain`).then((r) => r.data);
+
+export const getInterviewSession = (sessionId: string) =>
+  api.get(`/interview/session/${sessionId}`).then((r) => r.data);
+
+export const listInterviewSessions = () =>
+  api.get("/interview/sessions").then((r) => r.data);
+
+export const deleteInterviewSession = (sessionId: string) =>
+  api.delete(`/interview/session/${sessionId}`).then((r) => r.data);
+
+export const updateSessionResume = (sessionId: string, resume_text: string) =>
+  api.patch(`/interview/session/${sessionId}/resume`, { resume_text }).then((r) => r.data);
+
+export const optimizeSessionResume = (sessionId: string) =>
+  api.post(`/interview/session/${sessionId}/optimize`, {}).then((r) => r.data);
+
+export const getSessionOptimizeResult = (sessionId: string) =>
+  api.get(`/interview/session/${sessionId}/optimize`).then((r) => r.data);
+
+export const getInterviewQA = (sessionId: string) =>
+  api.get(`/interview/session/${sessionId}/qa`).then((r) => r.data);
+
+export const sendInterviewChat = (sessionId: string, message: string) =>
+  api.post(`/interview/${sessionId}/chat`, { message }).then((r) => r.data);
+
+export const getInterviewChat = (sessionId: string) =>
+  api.get(`/interview/${sessionId}/chat`).then((r) => r.data);
+
+export const deleteInterviewChatMessage = (sessionId: string, messageId: string) =>
+  api.delete(`/interview/${sessionId}/chat/${messageId}`).then((r) => r.data);
+
+export const clearInterviewChat = (sessionId: string) =>
+  api.delete(`/interview/${sessionId}/chat`).then((r) => r.data);
+
+export const createBrainstormThread = (sessionId: string, title: string) =>
+  api.post(`/interview/${sessionId}/brainstorm/thread`, { title }).then((r) => r.data);
+
+export const listBrainstormThreads = (sessionId: string) =>
+  api.get(`/interview/${sessionId}/brainstorm/threads`).then((r) => r.data);
+
+export const renameBrainstormThread = (sessionId: string, threadId: string, title: string) =>
+  api.patch(`/interview/${sessionId}/brainstorm/thread/${threadId}`, { title }).then((r) => r.data);
+
+export const deleteBrainstormThread = (sessionId: string, threadId: string) =>
+  api.delete(`/interview/${sessionId}/brainstorm/thread/${threadId}`).then((r) => r.data);
+
+export const sendBrainstormMessage = (sessionId: string, threadId: string, message: string) =>
+  api
+    .post(`/interview/${sessionId}/brainstorm/thread/${threadId}/message`, { message })
+    .then((r) => r.data);
+
+export const getBrainstormMessages = (sessionId: string, threadId: string) =>
+  api.get(`/interview/${sessionId}/brainstorm/thread/${threadId}/messages`).then((r) => r.data);
+
 export default api;

@@ -72,6 +72,7 @@ export interface ATSOptimizeResponse {
   interview_prep: string;
   gap_analysis: string;
   linkedin_unavailable: boolean;
+  role_reframes: { original: string; reframed: string; justification: string }[];
 }
 
 export interface FetchUrlResponse {

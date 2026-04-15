@@ -1,0 +1,256 @@
+✅ PROJECT REQUIREMENTS — INDEED CANADA SCRAPER (PHASED BUILD)
+Phase 1: Standalone Scraper Tool
+Phase 2: Integration Into Job‑Hunt Platform
+1. Project Overview
+You are building a high‑reliability, anti‑bot‑resistant job scraper specifically for Indeed Canada (ca.indeed.com).
+The scraper must be:
+
+Fully self‑built (no ScrapFly, no paid scraping APIs)
+
+Highly resilient against Cloudflare and bot detection
+
+Capable of extracting structured job data at scale
+
+Modular, maintainable, and ready for integration into a larger system
+
+This scraper will be developed as a standalone tool in Phase 1, tested thoroughly, and then integrated into your Job‑Hunt automation platform in Phase 2.
+
+2. Core Technology Requirements
+The scraper must be built using:
+
+2.1 Undetected Playwright
+Use a stealth‑enhanced Playwright build
+
+Randomize browser fingerprints
+
+Mimic human‑like behavior
+
+Support Chromium, Firefox, and WebKit
+
+Pass Cloudflare challenges reliably
+
+Maintain session cookies when needed
+
+2.2 Rotating Proxies
+Use rotating proxies for every new session or request batch
+
+Prefer residential proxies (but allow fallback to free proxies for testing)
+
+Implement:
+
+IP rotation
+
+Automatic retry on blocked requests
+
+Proxy health checks
+
+Failover logic
+
+3. Functional Requirements
+3.1 Scraping Capabilities
+The scraper must:
+
+Load ca.indeed.com job search pages using Playwright
+
+Extract job listings from:
+
+Search results pages
+
+Pagination
+
+Individual job detail pages
+
+Parse embedded JSON from:
+
+window.mosaic.providerData
+
+jobKeysWithInfo
+
+Any other dynamic JS objects
+
+3.2 Data Extraction Requirements
+For each job, extract:
+
+Job title
+
+Company name
+
+Location
+
+Salary (if available)
+
+Job description (full text)
+
+Posted date
+
+Job URL
+
+Job ID
+
+Employment type
+
+Remote/on‑site status
+
+Company rating (if available)
+
+3.3 Anti‑Bot Requirements
+The scraper must:
+
+Randomize user agents
+
+Randomize viewport sizes
+
+Randomize mouse movements
+
+Add human‑like delays
+
+Use stealth fingerprinting
+
+Detect Cloudflare blocks and retry
+
+Rotate proxies automatically
+
+4. Architecture Requirements
+4.1 Modular Code Structure
+The scraper must be split into modules:
+
+browser_manager.py
+
+Launch undetected Playwright
+
+Manage sessions
+
+Handle stealth settings
+
+proxy_manager.py
+
+Rotate proxies
+
+Validate proxies
+
+Retry logic
+
+scraper_core.py
+
+Navigate search pages
+
+Handle pagination
+
+Extract embedded JSON
+
+job_parser.py
+
+Normalize job data
+
+Clean HTML
+
+Extract structured fields
+
+storage_manager.py
+
+Save results to JSON/CSV
+
+(Phase 2) Save to PostgreSQL
+
+logger.py
+
+Structured logging
+
+Error tracking
+
+Proxy failure logs
+
+5. Performance Requirements
+Must support scraping hundreds of jobs per run
+
+Must handle pagination up to 10–20 pages
+
+Must retry failed pages automatically
+
+Must avoid IP bans through proxy rotation
+
+Must run headless or headed depending on debugging mode
+
+6. Phase 1 — Standalone Tool Requirements
+Phase 1 is fully isolated from your Job‑Hunt platform.
+
+The standalone tool must:
+
+Run independently
+
+Accept search parameters (e.g., “software developer”, “Toronto”)
+
+Output structured job data
+
+Log errors and proxy failures
+
+Provide a CLI or simple config file
+
+Be fully testable before integration
+
+Goal:  
+Validate that the scraper is stable, scalable, and bypasses Indeed Canada’s anti‑bot systems.
+
+7. Phase 2 — Integration Into Job‑Hunt Platform
+After Phase 1 is validated, integrate the scraper into your Job‑Hunt automation platform, which includes:
+
+Multi‑board scraping
+
+Resume‑job matching
+
+ATS‑optimized resume generation
+
+Cover letter generation
+
+Dashboard UI
+
+Job tracking + analytics
+
+The scraper will become a backend microservice that:
+
+Accepts job search queries
+
+Returns normalized job data
+
+Stores results in PostgreSQL
+
+Triggers downstream automation (n8n, resume tailoring, etc.)
+
+8. Non‑Functional Requirements
+8.1 Maintainability
+Code must be clean, modular, and documented
+
+Easy to extend to other job boards (LinkedIn, Glassdoor, etc.)
+
+8.2 Scalability
+Must support future clustering (Playwright Cluster)
+
+Must support distributed scraping
+
+8.3 Reliability
+Must handle:
+
+Network failures
+
+Proxy failures
+
+Cloudflare blocks
+
+JavaScript rendering delays
+
+9. Deliverables
+Fully working undetected Playwright scraper
+
+Proxy rotation system
+
+JSON extraction logic
+
+Modular codebase
+
+Logging system
+
+Documentation
+
+Phase 1 test results
+
+Integration plan for Phase 2

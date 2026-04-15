@@ -7,32 +7,31 @@ const config: Config = {
       colors: {
         // Obsidian Ether — surface hierarchy
         bg: {
-          DEFAULT: "#111317",
-          surface: "#1a1c20",
-          elevated: "#1e2024",
+          DEFAULT: "#0e0e0f",
+          surface: "#19191b",
+          elevated: "#1f1f22",
           high: "#282a2e",
           highest: "#333539",
-          lowest: "#0c0e12",
+          lowest: "#131315",
           bright: "#37393e",
-          border: "#444748",
+          border: "#48484b",
         },
-        // Accent — silver-gray as the interactive secondary
         accent: {
-          DEFAULT: "#c6c6c7",   // silver-gray (metallic, not blue)
-          light: "#d6baff",     // purple — decorative only
-          blue: "#7cd0ff",      // blue — glow decorations only
-          amber: "#ffc87c",     // amber — glow decorations only
-          glow: "rgba(198,198,199,0.15)",
+          DEFAULT: "#c6c6c8",
+          light: "#c677dd",     // magenta — chromatic
+          blue: "#64c8ff",      // blue — chromatic
+          teal: "#00ffc8",      // teal — chromatic
+          glow: "rgba(198,198,200,0.15)",
         },
         text: {
-          primary: "#e0dbd2",   // vintage warm white — body text
-          secondary: "#bfbab2", // warm muted
-          muted: "#8a8680",     // warm gray
-          dim: "#5c5a56",
+          primary: "#e7e5e8",
+          secondary: "#acaaae",
+          muted: "#767578",
+          dim: "#48484b",
         },
-        success: "#4ade80",
+        success: "#6ee7b7",
         warning: "#ffc87c",
-        danger: "#f87171",
+        danger: "#ee7d77",
       },
       fontFamily: {
         serif:   ['"Manrope"', "sans-serif"],

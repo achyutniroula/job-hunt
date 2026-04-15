@@ -35,6 +35,16 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db() -> None:
-    """Create all tables on startup."""
+    """Create all tables on startup, and migrate new columns if needed."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Idempotent column migrations for SQLite
+        for col_sql in [
+            "ALTER TABLE interview_sessions ADD COLUMN github_url TEXT",
+            "ALTER TABLE interview_sessions ADD COLUMN github_context TEXT",
+            "ALTER TABLE interview_sessions ADD COLUMN optimize_result TEXT",
+        ]:
+            try:
+                await conn.execute(__import__("sqlalchemy").text(col_sql))
+            except Exception:
+                pass  # column already exists

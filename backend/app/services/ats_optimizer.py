@@ -11,6 +11,7 @@ Pipeline:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -31,6 +32,21 @@ settings = get_settings()
 def _extract_tag(text: str, tag: str) -> str:
     m = re.search(rf"<{tag}>(.*?)</{tag}>", text, re.DOTALL)
     return m.group(1).strip() if m else ""
+
+
+def _parse_role_reframes(text: str) -> list[dict]:
+    entries = []
+    for block in re.split(r"-{3,}", text):
+        orig = re.search(r"ORIGINAL:\s*(.+)", block)
+        new  = re.search(r"NEW:\s*(.+)", block)
+        why  = re.search(r"WHY:\s*(.+)", block)
+        if orig and new and why:
+            entries.append({
+                "original": orig.group(1).strip(),
+                "reframed": new.group(1).strip(),
+                "justification": why.group(1).strip(),
+            })
+    return entries
 
 
 # ── System prompt ─────────────────────────────────────────────────────────────
@@ -104,16 +120,16 @@ then 2-3 new improvement suggestions.
 # ── LaTeX generation ──────────────────────────────────────────────────────────
 
 _LATEX_SYSTEM = """\
-You are a LaTeX resume formatter. Replace ONLY textual content in the template with the \
-provided resume content. The result MUST fit on one page.
+You are a LaTeX resume formatter. Inject the provided resume content into the template.
 
-RULES:
+STRICT RULES:
+- Font size is 11pt throughout — never change it.
+- ONE PAGE HARD LIMIT: the compiled PDF must fit exactly one page. Trim bullet text (never sections) until it fits.
 - Never change LaTeX commands, packages, \\newcommand definitions, or formatting directives.
-- Never add, remove, or rename sections.
+- The PROJECTS section MUST contain exactly 5 \\resumeProjectHeading entries. Copy the template's \\resumeProjectHeading structure and add entries as needed.
 - Never change \\resumeSubheading, \\resumeItem, \\resumeProjectHeading argument structure.
 - Escape special characters: & → \\&, % → \\%, $ → \\$, # → \\#, _ → \\_
-- URLs: output each URL as plain text exactly as given. Do NOT wrap in \\href, \\myuline, or any macro.
-- ONE PAGE: if content is too long, trim bullet text (not sections) until it fits one page.
+- URLs in the heading: preserve the \\href{...}{\\myuline{...}} pattern exactly. Do not convert to plain text.
 - Output ONLY the complete LaTeX document — no markdown, no explanation, no code fences.
 """
 
@@ -124,7 +140,7 @@ TEMPLATE:
 RESUME CONTENT:
 {optimized_text}
 
-Inject the resume content into the template. Output must fit one page.
+Inject content into template. PROJECTS section must have exactly 5 entries. Must fit one page at 11pt.
 """
 
 # ── ATS scoring ───────────────────────────────────────────────────────────────
@@ -220,7 +236,7 @@ async def _generate_latex(optimized_text: str, client: anthropic.AsyncAnthropic)
 
         msg = await client.messages.create(
             model=settings.anthropic_model,
-            max_tokens=3000,
+            max_tokens=4000,
             system=_LATEX_SYSTEM,
             messages=[{
                 "role": "user",
@@ -371,6 +387,17 @@ For every skill prominently featured (especially inferred or reframed ones): one
 question + a one-sentence honest answer framework based on actual project evidence.
 </interview_prep>
 
+<role_reframing>
+Review each position title on the resume against its bullet points. For any role where the \
+described work clearly maps to a more precise, function-based title, output:
+ORIGINAL: <current title>
+NEW: <accurate title based on actual work>
+WHY: <one sentence citing the work described>
+---
+Only rename where truthfully supported by the bullet content. Leave accurate titles unchanged. \
+Do not inflate seniority. If no rename is warranted, output nothing.
+</role_reframing>
+
 JOB DESCRIPTION:
 {job_description}
 
@@ -427,6 +454,12 @@ async def optimize_with_profile(
     transparency = _extract_tag(full, "transparency_report")
     interview = _extract_tag(full, "interview_prep")
     gap = _extract_tag(full, "gap_analysis")
+    role_reframes = _parse_role_reframes(_extract_tag(full, "role_reframing"))
+    if role_reframes:
+        transparency += "\n\nRole Titles Reframed:\n" + "\n".join(
+            f"- {r['original']} → {r['reframed']}: {r['justification']}"
+            for r in role_reframes
+        )
 
     score_before = _estimate_ats_score(resume_text, job_description)
     score_after = _estimate_ats_score(optimized_text, job_description)
@@ -451,4 +484,166 @@ async def optimize_with_profile(
         interview_prep=interview,
         gap_analysis=gap,
         linkedin_unavailable=linkedin_unavailable,
+        role_reframes=role_reframes,
+    )
+
+
+# ── Session-based optimization (uses pre-fetched GitHub context) ──────────────
+
+_SESSION_OPT_USER = """\
+<job_analysis>
+Extract from the job description: required skills, preferred skills, ATS keywords, seniority signals.
+</job_analysis>
+
+<gap_analysis>
+Compare job requirements against resume and GitHub evidence.
+List: confirmed skills (with evidence), inferrable skills from GitHub code, honest gaps.
+</gap_analysis>
+
+<optimized_resume>
+Produce a complete rewritten resume following ALL rules below:
+
+PROJECTS SECTION — MANDATORY:
+- Select exactly 5 DISTINCT GitHub repositories from the GitHub data below.
+- Use the EXACT repository name as it appears in the GitHub data (e.g. "[repo-name]") — never rename, paraphrase, or invent variants.
+- Each entry must reference a different repo name. If two entries would share the same name, replace one with a different repo.
+- Do NOT include repos already mentioned under Experience.
+- For each project write exactly 2 concise bullet points (≤12 words each) highlighting JD-relevant technical aspects.
+- Format each project as:  <Exact Repo Name> | <comma-separated tech stack>
+- Output all 5. Never duplicate a repo name.
+
+EXPERIENCE SECTION:
+- You MAY rename a role title if the actual described work more precisely matches a different function-based title.
+- Trim each bullet to ≤15 words. Remove filler. Prioritize JD-keyword alignment.
+- Keep only the 2–3 strongest bullets per role if space is tight.
+
+GENERAL RULES:
+- ONE PAGE, 11pt font throughout. If content is too long, compact bullets — never remove sections.
+- Weave in ATS keywords naturally. No em dashes. No buzzwords.
+- Preserve all URLs, dates, company names, and factual content exactly.
+
+RESUME:
+{resume_text}
+</optimized_resume>
+
+<transparency_report>
+Every change: rewording reason (cite GitHub evidence), keywords added, roles renamed and why, projects selected and why.
+</transparency_report>
+
+<interview_prep>
+For each of the 5 projects and any reframed role: one likely interview question + one-sentence honest answer framework.
+</interview_prep>
+
+<role_reframing>
+For each renamed role:
+ORIGINAL: <current title>
+NEW: <new title>
+WHY: <one sentence citing the work>
+---
+Only include renamed roles. Output nothing if none.
+</role_reframing>
+
+JOB DESCRIPTION:
+{job_description}
+
+GITHUB PROJECTS (deep context — file tree, key files, README):
+{github_summary}
+"""
+
+
+def _build_rich_github_summary(github_context_json: str) -> str:
+    try:
+        data = json.loads(github_context_json)
+    except Exception:
+        return ""
+
+    langs = ", ".join(list((data.get("top_languages") or {}).keys())[:8])
+    lines = [f"GitHub: @{data.get('username')} | Top languages: {langs}"]
+
+    seen: set[str] = set()
+    for r in (data.get("repos") or []):
+        if r["name"] in seen:
+            continue
+        seen.add(r["name"])
+        repo_langs = ", ".join(list((r.get("languages") or {}).keys())[:5])
+        topics = ", ".join((r.get("topics") or [])[:5])
+        lines.append(f"\n[{r['name']}] {r.get('description') or ''}")
+        if repo_langs:
+            lines.append(f"  Languages: {repo_langs}")
+        if topics:
+            lines.append(f"  Topics: {topics}")
+        tree = r.get("file_tree") or []
+        if tree:
+            lines.append(f"  Files ({len(tree)}): {' '.join(tree[:30])}")
+        readme = r.get("readme") or r.get("readme_excerpt")
+        if readme:
+            lines.append(f"  README: {readme[:500]}")
+        for path, content in list((r.get("key_files") or {}).items())[:3]:
+            lines.append(f"  [{path}]: {content[:300]}")
+
+    return "\n".join(lines)
+
+
+async def optimize_for_session(
+    resume_text: str,
+    job_description: str,
+    github_context_json: str | None = None,
+) -> ATSOptimizeResponse:
+    """Optimize using pre-fetched deep GitHub context stored in an interview session."""
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    github_summary = _build_rich_github_summary(github_context_json) if github_context_json else "No GitHub data."
+
+    user_msg = _SESSION_OPT_USER.format(
+        job_description=job_description[:2000],
+        github_summary=github_summary[:5000],
+        resume_text=resume_text[:4000],
+    )
+
+    try:
+        message = await client.messages.create(
+            model=settings.anthropic_model,
+            max_tokens=4500,
+            system=_PROFILE_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error (session optimize): %s", exc)
+        raise
+
+    full = message.content[0].text if message.content else ""
+
+    optimized_text = _extract_tag(full, "optimized_resume") or resume_text
+    transparency = _extract_tag(full, "transparency_report")
+    interview = _extract_tag(full, "interview_prep")
+    gap = _extract_tag(full, "gap_analysis")
+    role_reframes = _parse_role_reframes(_extract_tag(full, "role_reframing"))
+    if role_reframes:
+        transparency += "\n\nRole Titles Reframed:\n" + "\n".join(
+            f"- {r['original']} → {r['reframed']}: {r['justification']}"
+            for r in role_reframes
+        )
+
+    score_before = _estimate_ats_score(resume_text, job_description)
+    score_after = _estimate_ats_score(optimized_text, job_description)
+    matched, missing = _keyword_breakdown(optimized_text, job_description)
+
+    latex_text = await _generate_latex(optimized_text, client)
+
+    return ATSOptimizeResponse(
+        original_text=resume_text,
+        optimized_text=optimized_text,
+        latex_text=latex_text,
+        changes_summary=[],
+        change_items=[],
+        ats_score_before=score_before,
+        ats_score_after=score_after,
+        matched_keywords=matched,
+        missing_keywords=missing,
+        improvements=[],
+        transparency_report=transparency,
+        interview_prep=interview,
+        gap_analysis=gap,
+        linkedin_unavailable=False,
+        role_reframes=role_reframes,
     )

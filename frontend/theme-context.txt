@@ -1,0 +1,214 @@
+═══════════════════════════════════════════════════════
+  VISIONFLOW — THEME CONTEXT (reuse reference)
+═══════════════════════════════════════════════════════
+
+━━━ FONTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Primary:  Manrope (Google Fonts)
+  Weights used: 200, 300, 400, 500
+  Default body weight: 300
+  Headings: weight 200 (ultra-light, elegant)
+  Labels/caps: weight 300, tracking 0.1–0.25em, uppercase
+  letter-spacing: 0.02em (headings) · 0.1–0.25em (caps/labels)
+
+Icons: Material Symbols Outlined (Google Fonts)
+  Variation: FILL 0, wght 300, GRAD 0, opsz 24
+  Loaded via: @fontsource or Google Fonts CDN
+
+━━━ DESIGN PHILOSOPHY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Ultra-minimal dark-first glassmorphism
+- Monochromatic silver/grey palette (no bold accent colors)
+- Subtle ambient chromatic glows (blue, magenta, teal) — low opacity only
+- Frosted glass surfaces via backdrop-filter: blur()
+- All borders are semi-transparent, never solid
+- Motion: cubic-bezier(0.2,0,0,1) — fast-out, slow-in feel
+- Border-radius: 4px buttons · 10px cards · 50% spinners
+
+━━━ CSS VARIABLES — DARK THEME (default) ━━━━━━━━━━━━━
+:root, [data-theme="dark"] {
+  --bg:               #0e0e0f;          /* page background */
+  --surface:          #19191b;          /* default card/panel */
+  --surface-low:      #131315;          /* recessed surface */
+  --surface-high:     #1f1f22;          /* raised surface */
+  --glass-bg:         rgba(37,38,40,0.65);
+  --glass-border:     rgba(72,72,75,0.22);
+  --glass-border-h:   rgba(198,198,200,0.2);  /* hovered border */
+  --on-surface:       #e7e5e8;          /* primary text */
+  --on-muted:         #acaaae;          /* secondary text */
+  --outline:          #767578;          /* icons, dividers */
+  --outline-dim:      #48484b;          /* faint borders */
+  --outline-faint:    rgba(72,72,75,0.18);
+  --primary:          #c6c6c8;          /* brand accent (silver) */
+  --primary-dim:      #b8b9bb;
+  --input-bg:         #0e0e0f;
+  --input-border:     rgba(72,72,75,0.4);
+  --error:            #ee7d77;
+  --success:          #6ee7b7;
+  --spinner-color:    rgba(198,198,200,0.5);
+  --ambient-glow:     rgba(198,198,200,0.025);
+  --ctrl-bg:          rgba(14,14,15,0.95);
+  --header-glow-1:    rgba(100,200,255,0.6);   /* blue glow */
+  --header-glow-2:    rgba(198,119,221,0.4);   /* magenta glow */
+  --header-glow-3:    rgba(0,255,200,0.2);     /* teal glow */
+}
+
+━━━ CSS VARIABLES — LIGHT THEME ━━━━━━━━━━━━━━━━━━━━━━
+[data-theme="light"] {
+  --bg:               #F2F2F5;
+  --surface:          #E8E8EC;
+  --surface-low:      #EEEEF2;
+  --surface-high:     #DCDCE0;
+  --glass-bg:         rgba(255,255,255,0.72);
+  --glass-border:     rgba(0,0,0,0.07);
+  --glass-border-h:   rgba(0,0,0,0.18);
+  --on-surface:       #1a1a1c;
+  --on-muted:         #4a4a4c;
+  --outline:          #7a7a7c;
+  --outline-dim:      #bcbcbe;
+  --outline-faint:    rgba(0,0,0,0.07);
+  --primary:          #3c3c3e;
+  --primary-dim:      #5a5a5c;
+  --input-bg:         rgba(255,255,255,0.8);
+  --input-border:     rgba(0,0,0,0.1);
+  --error:            #c0392b;
+  --success:          #27ae60;
+  --spinner-color:    rgba(60,60,62,0.5);
+  --ambient-glow:     rgba(0,0,0,0.03);
+  --ctrl-bg:          rgba(26,26,28,0.92);
+  --header-glow-1:    rgba(70,180,255,0.7);
+  --header-glow-2:    rgba(180,80,200,0.5);
+  --header-glow-3:    rgba(0,220,180,0.3);
+}
+
+━━━ SCROLLBAR ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+width: 4px · height: 4px
+track: var(--bg) · thumb: var(--outline-faint)
+thumb hover: var(--glass-border) · border-radius: 2px
+
+━━━ GLASS CARD PATTERN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+background: var(--glass-bg)
+backdrop-filter: blur(24px)
+border: 1px solid var(--glass-border)          /* default */
+border: 1px solid var(--glass-border-h)        /* :hover */
+border-radius: 10px
+box-shadow (default): 0 2px 16px rgba(0,0,0,0.08),
+                      inset 0 0 20px rgba(118,184,255,0.03)
+box-shadow (hover):   0 12px 60px rgba(0,0,0,0.18),
+                      0 2px 16px rgba(0,0,0,0.1),
+                      inset 0 0 30px rgba(198,119,221,0.08)
+transition: border-color 0.35s, box-shadow 0.35s cubic-bezier(0.2,0,0,1)
+
+Hover gradient overlay (via backgroundImage dual-layer trick):
+  linear-gradient(var(--glass-bg), var(--glass-bg)),
+  linear-gradient(135deg,
+    rgba(255,0,127,0.08),
+    rgba(0,255,200,0.04),
+    rgba(100,200,255,0.06))
+backgroundClip: padding-box, border-box
+backgroundOrigin: border-box
+
+Mouse-follow ambient spotlight (inside card on hover):
+  radial-gradient(320px circle at {x}px {y}px,
+    var(--ambient-glow), transparent 70%)
+
+━━━ GLASS BUTTON PATTERN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+border-radius: 4px · font-weight: 300
+backdrop-filter: blur(16px)
+letter-spacing: 0.1em · text-transform: uppercase
+transition: all 0.25s cubic-bezier(0.2,0,0,1)
+font-family: Manrope
+
+PRIMARY variant:
+  bg (rest):   rgba(198,198,200,0.07)
+  bg (hover):  rgba(198,198,200,0.13)
+  border:      1px solid rgba(198,198,200,0.2) / var(--glass-border-h)
+  color:       var(--primary-dim) / var(--on-surface)
+  shadow hover: inset 0 1px 0 rgba(255,255,255,0.08),
+                0 0 20px rgba(255,0,127,0.1)
+  shadow rest:  inset 0 0 15px rgba(100,200,255,0.05)
+
+SECONDARY variant:
+  bg (rest):   rgba(255,255,255,0.03)
+  bg (hover):  rgba(255,255,255,0.07)
+  border:      var(--outline-dim) / var(--outline)
+  color:       var(--outline) / var(--on-muted)
+  shadow hover: 0 0 15px rgba(0,255,200,0.08)
+
+Background gradient on hover (blended overlay):
+  linear-gradient(135deg,
+    rgba(255,0,127,0.06),
+    rgba(0,255,200,0.03),
+    rgba(100,200,255,0.05))
+
+SIZES:
+  sm:  padding 0.5rem 2rem   · font 0.75rem
+  md:  padding 0.75rem 2.5rem · font 0.82rem · min-width 120px
+  lg:  padding 0.875rem 3rem  · font 0.875rem
+
+PRESS state: scale(0.975) · HOVER state: scale(1.01)
+
+━━━ METAL BUTTON PATTERN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3-layer construction: outer wrapper → inner gradient ring → button face
+font: Manrope · weight 300 · tracking 0.12em · uppercase · text-xs
+border-radius: rounded-sm (2px)
+Press: translateY(2px) scale(0.99) on wrapper, scale(0.97) on button
+Transition: all 250ms cubic-bezier(0.2,0,0,1)
+Shine: white gradient overlay fades in on press
+
+Silver/Default:
+  outer:  gradient #000 → #5a5c5d
+  inner:  gradient #d4d4d6 → #3e3f41 → #c6c6c8
+  face:   gradient #b8b9bb → #767578
+  text:   #0e0e0f · text-shadow: 0 -1px 0 rgb(80,80,80,40%)
+  hover shadow: 0 4px 24px rgba(198,198,200,0.2)
+
+━━━ HEADING GLOW EFFECT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+filter:
+  drop-shadow(0 0 15px var(--header-glow-1))
+  drop-shadow(0 0 30px var(--header-glow-2))
+  drop-shadow(0 0 45px var(--header-glow-3))
+(blue · magenta · teal — chromatic aberration feel)
+
+━━━ AMBIENT BACKGROUND GLOW BLOBS ━━━━━━━━━━━━━━━━━━━━
+position: fixed · inset: 0 · pointer-events: none · z-index: 0
+Blob 1: top -15%, right -10% · 55% × 55%
+  background: rgba(198,198,200,0.03) · filter: blur(120px)
+Blob 2: bottom -10%, left 15% · 35% × 35%
+  background: rgba(37,38,40,0.06) · filter: blur(100px)
+Shape: border-radius 50%
+
+━━━ TYPOGRAPHY SCALE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hero H1:    clamp(3rem, 8vw, 6rem) · weight 200 · tracking 0.02em · lh 1.05
+Section H2: clamp(1.75rem, 4vw, 2.5rem) · weight 200 · tracking 0.03em
+Card H3:    1rem · weight 300 · tracking 0.02em
+Body:       clamp(0.9rem, 2vw, 1.05rem) · weight 300 · lh 1.8
+Card body:  0.875rem · weight 300 · lh 1.75
+Label/caps: 0.65rem · weight 300 · tracking 0.25em · uppercase
+Footer:     0.68–0.72rem · weight 300 · tracking 0.1–0.12em
+
+━━━ ANIMATIONS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+spin:    rotate(360deg) — duration 0.9s linear infinite
+fadeIn:  opacity 0→1, translateY(6px→0)
+Easing:  cubic-bezier(0.2,0,0,1) throughout
+
+Spinner:
+  width/height: 28px · border-radius: 50%
+  border: 1px solid rgba(198,198,200,0.4)
+  border-top-color: transparent
+
+━━━ LAYOUT PATTERNS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Page max-width: 1200px · padding: 1.5rem sides
+Card grid: repeat(auto-fit, minmax(320px, 1fr)) · gap 1.25rem
+Section padding: 6rem top, 8rem bottom
+Theme toggle: data-theme attr on <html> ("dark" | "light")
+Default theme: dark
+
+━━━ BASE RESET ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+* { box-sizing: border-box; padding: 0; margin: 0; }
+html, body { max-width: 100vw; overflow-x: hidden; }
+a { color: inherit; text-decoration: none; }
+body transition: background 0.3s ease, color 0.3s ease
+
+━━━ STACK ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Next.js (App Router) · Tailwind CSS v4 (@import "tailwindcss")
+Radix UI (Slot) · class-variance-authority · clsx/cn util
+═══════════════════════════════════════════════════════

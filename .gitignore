@@ -32,3 +32,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+#Misc
+resume_optimization_prompt.txt

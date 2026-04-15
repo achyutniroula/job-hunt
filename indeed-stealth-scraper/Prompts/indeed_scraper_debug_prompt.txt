@@ -1,0 +1,64 @@
+You are debugging and fixing 3 critical issues in the Indeed Canada scraper + UI. For each fix, write and run a test to verify it works before moving on.
+
+--- ISSUE 1: PAGINATION STUCK AT PAGE 1 / 15 JOB CAP ---
+
+Diagnose first:
+- Print the exact URL built on each iteration
+- Print len(jobCards) returned per page
+- Find where the loop exits early
+
+Fix in scraper_core.py:
+- Indeed uses start= offset, NOT page numbers
+- Build URLs: f"https://ca.indeed.com/jobs?q={query}&l={location}&start={i*10}" for i in range(max_pages)
+- Extract jobs from: window.mosaic.providerData["mosaic-provider-jobcards"]["metaData"]["mosaicProviderJobCardsModel"]["jobCards"]
+- Stop early ONLY if jobCards is empty or None
+- Remove ANY hardcoded cap (15 jobs, 1 page, etc.)
+- Re-attach q= and l= on EVERY paginated URL — never rely on browser state
+
+Test after fix:
+- Scrape query="software developer" location="Ontario" pages=20
+- Assert total jobs > 100
+- Print page-by-page counts to confirm all 20 pages ran
+- Log final total to console
+
+--- ISSUE 2: RESULTS BOX EMPTY AFTER SCRAPE ---
+
+Diagnose first:
+- Add console.log in app.js showing raw /api/results response
+- Add print() in routes/results.py showing jobs count in state at request time
+- Identify: is state empty, or is frontend not rendering?
+
+Fix:
+- scrape_runner.py: append to shared jobs[] after EACH page, not only on completion
+- routes/results.py: return from in-memory jobs[] first; fall back to latest JSON file if empty
+- app.js: poll /api/results every 3s while status="running", render rows incrementally
+
+Test after fix:
+- Start a scrape, immediately poll /api/results every 3s
+- Assert job rows appear in table before scrape completes
+- Print job count at each poll to confirm real-time growth
+
+--- ISSUE 3: REAL-TIME TABLE ASSEMBLY ---
+
+Fix in app.js:
+- On each poll: diff fetched jobs against rendered rows by job_id
+- Append only new rows — do not re-render full table
+- Show live counter above table: "X jobs found so far..." while running
+
+Test after fix:
+- Scrape 5 pages, confirm table grows page-by-page in console logs
+- Final UI count must match total in shared state
+
+--- END-TO-END INTEGRATION TEST ---
+
+Run after all fixes:
+- Query: "software developer", Location: "Ontario", Pages: 20
+- Assert total jobs > 100
+- Assert UI table populates in real time during scrape
+- Assert all 20 pages attempted — log each page URL + job count
+- Print summary: pages scraped, jobs per page, total, errors
+
+--- CONSTRAINTS ---
+- Do not modify browser_manager.py, proxy_manager.py, logger.py
+- No new dependencies
+- All test output to terminal, no test framework needed

@@ -1,18 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Sparkles, Mail, Search } from "lucide-react";
+import { LayoutDashboard, Sparkles, Mail, Search, BriefcaseBusiness } from "lucide-react";
 import clsx from "clsx";
 import { useAppStore } from "@/store/appStore";
 
 const navItems = [
-  { label: "Search",       href: "/",             icon: Search },
-  { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
-  { label: "Optimize",     href: "/optimize",     icon: Sparkles },
-  { label: "Cover Letter", href: "/cover-letter", icon: Mail },
+  { label: "Search",        href: "/",             icon: Search },
+  { label: "Dashboard",     href: "/dashboard",    icon: LayoutDashboard },
+  { label: "Optimize",      href: "/optimize",     icon: Sparkles },
+  { label: "Cover Letter",  href: "/cover-letter", icon: Mail },
+  { label: "Job Module",     href: "/interview",   icon: BriefcaseBusiness },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
   const { activeSession } = useAppStore();
+  const isNavHidden = location.pathname.startsWith("/optimize") || location.pathname.startsWith("/cover-letter");
 
   const isActive = (href: string) => {
     if (href === "/") return location.pathname === "/";
@@ -24,14 +26,23 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex fixed left-0 top-[57px] w-72 flex-col py-8 z-40"
-      style={{ height: "calc(100vh - 57px)", background: "#111317", borderRight: "1px solid rgba(255,255,255,0.04)" }}
+      className={`hidden md:flex fixed left-0 ${isNavHidden ? "top-0" : "top-[57px]"} w-72 flex-col py-8 z-40`}
+      style={{
+        height: isNavHidden ? "100vh" : "calc(100vh - 57px)",
+        background: "rgba(17,19,23,0.9)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+      }}
     >
       {/* Nav */}
       <nav className="flex-1 space-y-1">
         {navItems.map(({ label, href, icon: Icon }) => {
           const active = isActive(href);
           if (href === "/dashboard" && !activeSession) return null;
+          if (href === "/interview") {
+            // always show interview link
+          }
           const resolvedHref = href === "/dashboard" ? (dashboardHref ?? "/") : href;
 
           return (

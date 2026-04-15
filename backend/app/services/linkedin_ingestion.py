@@ -28,16 +28,16 @@ class LinkedInProfile:
     linkedin_unavailable: bool = False
 
 
-def _is_blocked(url: str, body: str) -> bool:
+def _is_blocked(url: str) -> bool:
     url_l = url.lower()
-    return "authwall" in url_l or "login" in url_l or "authwall" in body[:2000] or "Sign in" in body[:500]
+    return "authwall" in url_l or "/login" in url_l or "/checkpoint" in url_l
 
 
 async def fetch_linkedin_profile(url: str) -> LinkedInProfile:
     try:
         async with httpx.AsyncClient(headers=_HEADERS, follow_redirects=True, timeout=15.0) as client:
             resp = await client.get(url)
-            if resp.status_code != 200 or _is_blocked(str(resp.url), resp.text):
+            if resp.status_code != 200 or _is_blocked(str(resp.url)):
                 logger.info("LinkedIn blocked or unavailable for %s", url)
                 return LinkedInProfile(linkedin_unavailable=True)
 
@@ -67,6 +67,10 @@ async def fetch_linkedin_profile(url: str) -> LinkedInProfile:
             t = el.get_text(strip=True)
             if t:
                 skills.append(t)
+
+        if not name and not headline and not experience and not skills:
+            logger.info("LinkedIn returned empty profile for %s — likely gated", url)
+            return LinkedInProfile(linkedin_unavailable=True)
 
         return LinkedInProfile(
             name=name, headline=headline, location=location,

@@ -1,0 +1,185 @@
+⭐ Interview Prep Module — Full Concept Overview
+1. Purpose of the Interview Prep Page
+A dedicated page that helps the user prepare for interviews for the exact job they targeted when generating their resume.
+It should feel premium, smooth, and highly interactive — a “workspace” for interview readiness.
+
+⭐ 2. UI & Experience Requirements
+Large, readable UI
+Global font size is bigger and more comfortable than the rest of the platform.
+
+All sections, cards, and boxes scale proportionally.
+
+The page uses maximum available screen width, avoiding cramped layouts.
+
+Smooth animations
+Soft scrolling transitions
+
+Smooth panel expansions
+
+Clean navigation between modules
+
+No jittery or abrupt movements
+
+Navigation Pane
+A left‑side or top navigation pane listing all interview prep modules:
+
+Resume Preview
+
+Job Details
+
+Company Links
+
+Interview Q&A
+
+Brainstorm Chat
+
+(Future modules can be added easily)
+
+Each module opens smoothly with a slide or fade animation.
+
+⭐ 3. Core Modules (All Persisted Across Sessions)
+Everything in this section must be saved permanently in a database (even for local deployments) until the user deletes it.
+
+3.1. Modified Resume Preview
+Display the final optimized resume used for this job.
+
+Shown as a PDF preview with zoom controls.
+
+Stored persistently so it loads instantly on every visit.
+
+3.2. Target Job Information
+Job title
+
+Full job description
+
+Any extracted metadata (location, seniority, salary if available)
+
+Clean, readable formatting
+
+Always tied to the specific job the user selected
+
+3.3. Company Links
+Official website
+
+Careers page
+
+Glassdoor / Indeed company reviews
+
+LinkedIn company profile
+
+Any other relevant links
+
+Displayed in a clean, clickable list
+
+3.4. Interview Content (Q&A + AI Chat)
+This is the heart of the module.
+
+Interview Questions & Answers
+Automatically generated based on:
+
+the job description
+
+the user’s resume
+
+the company
+
+Organized into categories (technical, behavioral, situational, role‑specific)
+
+AI Chat for Follow‑Up Questions
+Uses a free LLM API (Groq or similar)
+
+User can ask:
+
+follow‑up questions
+
+clarifications
+
+mock interview questions
+
+deeper explanations
+
+Chat UI is clean, large‑font, and easy to read.
+
+Persistent Chat History
+Every message is saved in the database
+
+History loads automatically on page open
+
+User can delete individual messages or clear the entire chat
+
+3.5. Brainstorm Chat
+A separate, free‑form chat space for:
+
+brainstorming ideas
+
+asking career questions
+
+thinking through strategy
+
+exploring company culture
+
+preparing stories or examples
+
+Features
+Users can create multiple brainstorm threads
+
+Users can delete or rename threads
+
+All threads and messages are stored persistently
+
+Uses the same free LLM API
+
+Clean, centered UI with large readable text
+
+⭐ 4. Persistence Requirements
+Everything in the Interview Prep module must survive:
+
+page reloads
+
+browser restarts
+
+server restarts
+
+local deployments
+
+Stored until the user explicitly deletes it.
+
+This includes:
+
+resume PDF
+
+job details
+
+company links
+
+interview Q&A
+
+AI chat history
+
+brainstorm chat threads
+
+any metadata or settings
+
+⭐ 5. Technical Notes
+Use minimal tokens when interacting with the LLM
+
+Cache results where possible
+
+Store chats in a lightweight database (SQLite, Postgres, or local JSON for dev)
+
+Keep the UI responsive and smooth
+
+Ensure the module is tied to the specific job the user selected
+
+⭐ 6. Overall Goal
+Create a beautiful, persistent, AI‑powered interview preparation workspace that:
+
+feels premium
+
+is easy to navigate
+
+stores everything permanently
+
+helps the user prepare deeply for the exact job they’re targeting
+
+integrates seamlessly with the resume optimization engine

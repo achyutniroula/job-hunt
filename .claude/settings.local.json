@@ -16,7 +16,23 @@
       "Bash(python -c \"from app.scrapers.jobspy_scraper import IndeedScraper; print\\('OK'\\)\")",
       "Bash(python -c \"from app.services.github_ingestion import GitHubProfile; print\\('OK'\\)\")",
       "Bash(python -c \"from app.services.skill_inference import UserSkillProfile; print\\('OK'\\)\")",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(python -c \"from app.services.ats_optimizer import _parse_role_reframes, optimize_with_profile; print\\('OK'\\)\")",
+      "Bash(python -c \"from app.schemas.resume import ATSOptimizeResponse; r = ATSOptimizeResponse\\(original_text='x',optimized_text='y'\\); print\\('role_reframes:', r.role_reframes\\); print\\('OK'\\)\")",
+      "Bash(python -c \"from app.services.groq_chat import groq_chat; print\\('groq_chat OK'\\)\")",
+      "Bash(python -m pip show fastapi)",
+      "Bash(.venv/Scripts/python.exe -c \"from app.services.groq_chat import groq_chat; print\\('groq_chat OK'\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"from app.api.routes.interview import router; print\\('interview router OK'\\)\")",
+      "Bash(python -c \"from fpdf import FPDF; print\\('ok'\\)\")",
+      "Bash(D:/Projects/job-hunt/backend/.venv/Scripts/python.exe:*)",
+      "Bash(D:/Projects/job-hunt/backend/.venv/Scripts/pip.exe install:*)",
+      "Bash(ls D:/Projects/job-hunt/backend/.env*)",
+      "Bash(python:*)",
+      "Bash(curl -s \"https://api.github.com/rate_limit\")",
+      "Bash(grep -i \"python\" *.txt *.toml *.cfg)",
+      "Bash(ls -la *.ts *.js *.json)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

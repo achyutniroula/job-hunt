@@ -41,11 +41,12 @@ os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api.routes import jobs, resume, generate  # noqa: E402
+from app.api.routes import jobs, resume, generate, interview  # noqa: E402
 
 app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
 app.include_router(resume.router, prefix="/api/resume", tags=["Resume"])
 app.include_router(generate.router, prefix="/api/generate", tags=["Generate"])
+app.include_router(interview.router, prefix="/api/interview", tags=["Interview"])
 
 
 @app.get("/api/health", tags=["Health"])

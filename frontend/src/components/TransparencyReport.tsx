@@ -37,7 +37,7 @@ export default function TransparencyReport({ transparencyReport, gapAnalysis, in
       >
         <div className="flex items-center gap-2.5">
           <Eye className="w-3.5 h-3.5" style={{ color: "#7cd0ff" }} />
-          <span className="text-[11px] font-manrope font-semibold uppercase tracking-[0.15em]"
+          <span className="text-sm font-manrope font-semibold uppercase tracking-[0.15em]"
             style={{ color: "#7cd0ff" }}>
             Behind the Scenes
           </span>
@@ -60,7 +60,7 @@ export default function TransparencyReport({ transparencyReport, gapAnalysis, in
                   <button
                     key={key}
                     onClick={() => setTab(key)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-manrope uppercase tracking-wide transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-manrope uppercase tracking-wide transition-all"
                     style={tab === key
                       ? { background: "rgba(124,208,255,0.1)", color: "#7cd0ff", border: "1px solid rgba(124,208,255,0.2)" }
                       : { color: "#6b6e72" }}
@@ -72,7 +72,7 @@ export default function TransparencyReport({ transparencyReport, gapAnalysis, in
 
               {/* Content */}
               <div className="px-5 py-4 max-h-80 overflow-y-auto no-scrollbar">
-                <pre className="text-[11px] text-text-secondary font-inter leading-relaxed whitespace-pre-wrap">
+                <pre className="text-sm text-text-secondary font-inter leading-relaxed whitespace-pre-wrap">
                   {content[tab] || "No data available for this section."}
                 </pre>
               </div>

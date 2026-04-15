@@ -1,0 +1,88 @@
+Extend the existing Indeed Canada scraper by adding a local web UI (Phase 1 standalone).
+
+PROJECT STRUCTURE (add to indeed_scraper/):
+  api/
+    main.py          # FastAPI app, CORS, mounts routes
+    routes/
+      scrape.py      # POST /scrape, DELETE /scrape/stop
+      results.py     # GET /results
+      export.py      # GET /export/pdf, GET /export/excel
+    scrape_runner.py # Runs scraper in background thread, exposes status/logs
+  ui/
+    index.html       # Single-page app (vanilla JS + fetch)
+    app.js           # Dashboard, results table, modal, export
+    style.css        # Dark theme, clean minimal design
+
+BACKEND (FastAPI):
+
+api/main.py:
+- Serve UI static files at /
+- Mount API routes under /api
+- CORS: allow localhost:*
+- Uvicorn on port 8000
+
+scrape_runner.py:
+- Run scraper (scraper_core + job_parser) in a background thread
+- Expose shared state: {status, jobs[], logs[], proxy_errors, elapsed_time}
+- Support stop signal (threading.Event)
+- Save results via storage_manager on completion
+
+routes/scrape.py:
+- POST /api/scrape  body: {query, location, pages}
+  → start scrape thread, return {status: "started"}
+- DELETE /api/scrape/stop → set stop signal
+- GET /api/scrape/status → return state dict
+
+routes/results.py:
+- GET /api/results?page=1&limit=200&location=&remote=&salary=&company=
+  → return paginated, filtered jobs from in-memory state or last JSON file
+
+routes/export.py:
+- GET /api/export/excel → stream .xlsx (openpyxl)
+- GET /api/export/pdf   → stream PDF table (reportlab or weasyprint)
+- GET /api/export/pdf/{job_id} → single job PDF
+
+FRONTEND (vanilla JS, single HTML file + 2 assets):
+
+Dashboard panel:
+- Inputs: Job Title, Location, Pages (default 10)
+- "Start Scraping" button → POST /api/scrape
+- Status badge: Idle / Running / Completed / Failed
+- Live counters: jobs scraped, time elapsed, proxy errors
+- Collapsible log viewer (poll GET /api/scrape/status every 2s while running)
+
+Results table:
+- Columns: Title, Company, Location, Salary, Posted, Type, Remote, Rating, URL
+- Client-side sort on any column
+- Filter bar: Location, Salary (min), Remote toggle, Company search
+- Pagination: 200 rows/page
+- Click row → open Job Detail Modal
+
+Job Detail Modal:
+- Full description (scrollable)
+- Metadata: company, rating, type, location, URL (opens Indeed)
+- "Copy Description" button
+- "Export as PDF" → GET /api/export/pdf/{job_id}
+
+Export toolbar (above table):
+- "Export Excel" → GET /api/export/excel
+- "Export PDF"   → GET /api/export/pdf
+
+DESIGN:
+- Dark theme (#0f0f0f bg, #1a1a1a cards, #e0e0e0 text, blue accent #3b82f6)
+- Clean sans-serif (Inter or system-ui)
+- No external CSS frameworks — inline styles or minimal CSS file
+
+DEPENDENCIES (add to requirements.txt):
+fastapi, uvicorn, openpyxl, reportlab, aiofiles
+
+DELIVERABLES:
+1. All files above with full working code
+2. Updated requirements.txt
+3. README section: "Running the UI" (python api/main.py → open localhost:8000)
+4. Note Phase 2 migration path: swap in-memory state for PostgreSQL, extract UI as dashboard module
+
+CONSTRAINTS:
+- Do NOT modify existing scraper modules (browser_manager, proxy_manager, scraper_core, job_parser, storage_manager, logger)
+- Import them directly from the parent package
+- Phase 1: JSON file / in-memory only, no database

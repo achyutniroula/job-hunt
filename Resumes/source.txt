@@ -137,11 +137,12 @@
 
 %----------HEADING----------
 \begin{center}
-    \textbf{\Huge Harshibar} \\ \vspace{5pt}
-    \small \faPhone* \texttt{555.555.5555} \hspace{1pt} $|$
-    \hspace{1pt} \faEnvelope \hspace{2pt} \texttt{hello@email.com} \hspace{1pt} $|$ 
-    \hspace{1pt} \faYoutube \hspace{2pt} \texttt{harshibar} \hspace{1pt} $|$
-    \hspace{1pt} \faMapMarker* \hspace{2pt}\texttt{U.S. Citizen}
+    \textbf{\Huge Achyut Niroula} \\ \vspace{5pt}
+    \small
+    \faPhone* \texttt{(249) 358-0947} $|$
+    \faEnvelope \hspace{2pt} \texttt{niroula.achyut17@gmail.com} $|$
+    \faLinkedin \hspace{2pt} \href{https://linkedin.com/in/achyut-niroula}{\myuline{linkedin.com/in/achyut-niroula}} $|$
+    \faGithub \hspace{2pt} \href{https://github.com/achyutniroula}{\myuline{github.com/achyutniroula}}
     \\ \vspace{-3pt}
 \end{center}
 

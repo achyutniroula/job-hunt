@@ -52,6 +52,7 @@ class ATSOptimizeResponse(BaseModel):
     interview_prep: str = ""
     gap_analysis: str = ""
     linkedin_unavailable: bool = False
+    role_reframes: list[dict] = []
 
 
 class CoverLetterRequest(BaseModel):

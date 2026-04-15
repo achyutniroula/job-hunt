@@ -1,0 +1,70 @@
+Build a modular Indeed Canada job scraper (Phase 1 standalone tool).
+
+PROJECT STRUCTURE:
+indeed_scraper/
+  browser_manager.py   # Undetected Playwright, stealth, sessions
+  proxy_manager.py     # Rotation, health checks, failover
+  scraper_core.py      # Navigation, pagination, JSON extraction
+  job_parser.py        # Normalize/clean job data
+  storage_manager.py   # Save to JSON + CSV
+  logger.py            # Structured logging, error/proxy tracking
+  main.py              # CLI entrypoint
+
+TECH STACK:
+- playwright + playwright-stealth (or undetected-playwright)
+- Python 3.11+
+- Use free proxy fallback for testing (e.g. proxyscrape or env var PROXY_LIST)
+
+CORE BEHAVIOR:
+
+browser_manager.py:
+- Launch Playwright (Chromium default, configurable)
+- Randomize: user agent, viewport, locale
+- Stealth: disable webdriver flags, randomize navigator properties
+- Headless mode via env var DEBUG=1 for headed
+- Mimic human: random delays (0.5–2.5s), subtle mouse moves before clicks
+
+proxy_manager.py:
+- Load proxies from proxies.txt or env var
+- Rotate per session/request batch
+- Health check before use (async HEAD request)
+- Auto-retry with new proxy on 403/block
+
+scraper_core.py:
+- Target: ca.indeed.com/jobs?q=QUERY&l=LOCATION
+- Extract from window.mosaic.providerData and jobKeysWithInfo via page.evaluate()
+- Paginate up to MAX_PAGES (default 10, configurable)
+- Detect Cloudflare block (check page title/content), retry with new proxy+session
+- Return raw job dicts
+
+job_parser.py:
+- Normalize each job dict to:
+  {job_id, title, company, location, salary, description,
+   posted_date, url, employment_type, remote, company_rating}
+- Strip HTML from description
+- Handle missing fields gracefully (None defaults)
+
+storage_manager.py:
+- Save to output/jobs_TIMESTAMP.json and output/jobs_TIMESTAMP.csv
+- Append mode for CSV across paginated runs
+
+logger.py:
+- Use Python logging, structured format
+- Separate log levels: INFO (progress), WARNING (proxy fail), ERROR (block/crash)
+
+main.py CLI:
+- Args: --query, --location, --pages (default 10), --output (default ./output)
+- Example: python main.py --query "software developer" --location "Toronto, ON"
+
+ERROR HANDLING:
+- Retry failed pages up to 3x with exponential backoff
+- Skip unparseable jobs, log warning
+- Graceful shutdown on Ctrl+C, save partial results
+
+DELIVERABLES:
+1. All 7 files with full working code
+2. requirements.txt
+3. README.md with setup + usage instructions
+4. proxies.txt template (commented example format)
+
+Keep code clean, type-hinted, and commented. Optimize for reliability over speed.

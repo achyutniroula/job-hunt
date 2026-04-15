@@ -1,0 +1,14 @@
+{
+  "mosaic_keys": [],
+  "providerData_keys": [],
+  "jobcards_keys": [],
+  "has_model": false,
+  "dom_jk_count": 0,
+  "interesting_window_keys": [
+    "indeed.i18n.localeData",
+    "__indeedRealtimeConnectionVersionMap__",
+    "__indeedRealtimeConnectionInitialized__"
+  ],
+  "mosaic_script_count": 1,
+  "mosaic_script_bytes": 9504
+}

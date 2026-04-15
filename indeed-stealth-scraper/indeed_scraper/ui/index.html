@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indeed Scraper</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Header ── -->
+  <header>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <h1>Indeed <span>Scraper</span></h1>
+  </header>
+
+  <!-- ── Dashboard card ── -->
+  <div class="card" id="dashboard-card">
+    <div class="card-title">Search Parameters</div>
+
+    <!-- IT Mode toggle -->
+    <div class="it-mode-bar">
+      <label class="toggle-switch" title="Automatically searches for IT and computing roles.">
+        <input type="checkbox" id="it-mode-toggle" onchange="toggleITMode()" />
+        <span class="ts-slider"></span>
+      </label>
+      <span class="it-mode-label">IT Mode <span class="muted-label">— auto-filter for tech roles</span></span>
+    </div>
+
+    <!-- Query section -->
+    <div class="form-row" id="query-normal">
+      <div class="form-group" style="flex:1">
+        <label for="q-query">Job Title / Keywords</label>
+        <input id="q-query" type="text" placeholder='e.g. "software developer"' />
+      </div>
+    </div>
+    <div class="form-group" id="query-it" style="display:none">
+      <label>IT Keywords <span class="muted-label">(click × to remove · type + Enter to add)</span></label>
+      <div id="it-tags" class="tag-list"></div>
+      <input id="it-tag-input" type="text" class="tag-add-input" placeholder="Add keyword…" onkeydown="addITKeyword(event)" />
+    </div>
+
+    <!-- Location controls -->
+    <div class="loc-mode-row">
+      <span class="loc-mode-label">Search by</span>
+      <div class="loc-tabs">
+        <button class="loc-tab active" id="tab-city"     onclick="setLocMode('city')">City</button>
+        <button class="loc-tab"        id="tab-province" onclick="setLocMode('province')">Province</button>
+      </div>
+    </div>
+
+    <!-- City mode -->
+    <div id="loc-city" class="form-row">
+      <div class="form-group" style="flex:2">
+        <label for="q-location">City</label>
+        <input id="q-location" type="text" list="city-list" placeholder='e.g. "Toronto, ON"' />
+        <datalist id="city-list"></datalist>
+      </div>
+      <div class="form-group" style="flex:2">
+        <label>Radius: <span id="radius-val">0</span> km
+          <span class="muted-label" title="Scrape jobs within this distance from the selected city.">(0 = city only)</span>
+        </label>
+        <input id="q-radius" type="range" min="0" max="300" step="10" value="0" oninput="updateRadius(this.value)" class="radius-slider" />
+      </div>
+      <div class="form-group" style="flex:1; min-width:80px">
+        <label for="q-pages">Pages</label>
+        <input id="q-pages" type="number" min="1" max="20" value="10" />
+      </div>
+    </div>
+
+    <!-- Province mode -->
+    <div id="loc-province" class="form-row" style="display:none">
+      <div class="form-group" style="flex:2">
+        <label for="q-province">Province</label>
+        <select id="q-province" class="province-select">
+          <option value="">Select province…</option>
+          <option>Ontario</option>
+          <option>British Columbia</option>
+          <option>Alberta</option>
+          <option>Quebec</option>
+          <option>Manitoba</option>
+          <option>Saskatchewan</option>
+          <option>Nova Scotia</option>
+          <option>New Brunswick</option>
+          <option>Newfoundland &amp; Labrador</option>
+          <option>Prince Edward Island</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:80px">
+        <label for="q-pages-p">Pages / city</label>
+        <input id="q-pages-p" type="number" min="1" max="20" value="5" />
+      </div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <button class="btn btn-primary" id="btn-start" onclick="startScrape()">Start Scraping</button>
+      <button class="btn btn-danger"  id="btn-stop"  onclick="stopScrape()" disabled>Stop</button>
+      <button class="btn btn-ghost"   id="btn-more"  onclick="getMoreJobs()" style="display:none">+ Get More Jobs</button>
+      <span class="queue-info muted-label" id="queue-info"></span>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="stat-item">
+        <span class="stat-label">Status</span>
+        <span id="stat-status"><span class="badge badge-idle">Idle</span></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Jobs</span>
+        <span class="stat-value" id="stat-jobs">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Pages</span>
+        <span class="stat-value" id="stat-pages">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Elapsed</span>
+        <span class="stat-value" id="stat-elapsed">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Proxy Errors</span>
+        <span class="stat-value" id="stat-proxy">0</span>
+      </div>
+    </div>
+
+    <!-- Log viewer -->
+    <div class="log-toggle" id="log-toggle" onclick="toggleLog()">
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      Live Logs
+      <span id="log-count" style="color:#555; font-weight:400">(0 lines)</span>
+    </div>
+    <div id="log-box"></div>
+  </div>
+
+  <!-- ── Results section ── -->
+  <div class="card" id="results-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div class="card-title" style="margin-bottom:0">Results <span id="results-count" style="color:#555; font-weight:400; text-transform:none; letter-spacing:0; font-size:13px"></span></div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn btn-ghost btn-sm" onclick="exportExcel()">↓ Excel</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportPdf()">↓ PDF</button>
+      </div>
+    </div>
+
+    <div id="live-counter" style="display:none; margin-bottom:10px; font-size:13px; color:#3b82f6; font-weight:500"></div>
+
+    <div class="toolbar" style="margin-bottom:14px">
+      <input class="filter-input" id="f-location" placeholder="Filter location…" oninput="applyFilters()" />
+      <input class="filter-input" id="f-company"  placeholder="Filter company…"  oninput="applyFilters()" />
+      <select class="filter-select" id="f-level" onchange="applyFilters()">
+        <option value="">All levels</option>
+        <option value="intern">Intern / Co-op</option>
+        <option value="junior">Junior</option>
+        <option value="mid">Mid-level</option>
+        <option value="senior">Senior</option>
+        <option value="lead">Lead</option>
+        <option value="principal">Principal / Staff</option>
+        <option value="manager">Manager</option>
+        <option value="executive">Executive</option>
+        <option value="unknown">Unspecified</option>
+      </select>
+      <button class="toggle-btn" id="f-remote" onclick="toggleRemote()">Remote only</button>
+      <button class="toggle-btn" id="f-salary" onclick="toggleSalary()">Has salary</button>
+      <button class="toggle-btn" id="f-it" onclick="toggleIT()">IT jobs only</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear filters</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="jobs-table">
+        <thead>
+          <tr>
+            <th onclick="sortBy('title')">Title</th>
+            <th onclick="sortBy('company')">Company</th>
+            <th onclick="sortBy('location')">Location</th>
+            <th onclick="sortBy('level')">Level</th>
+            <th onclick="sortBy('salary')">Salary</th>
+            <th onclick="sortBy('posted_date')">Posted</th>
+            <th onclick="sortBy('employment_type')">Type</th>
+            <th onclick="sortBy('remote')">Remote</th>
+            <th onclick="sortBy('company_rating')">Rating</th>
+            <th>URL</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-body">
+          <tr><td colspan="10">
+            <div class="empty-state">
+              <div class="icon">🔍</div>
+              <p>Run a search to see results here.</p>
+            </div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination" style="display:none">
+      <span id="page-info"></span>
+      <div class="page-controls">
+        <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="changePage(-1)">← Prev</button>
+        <span id="page-num" style="font-size:13px; color:var(--text)"></span>
+        <button class="btn btn-ghost btn-sm" id="btn-next" onclick="changePage(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Job Detail Modal ── -->
+<div class="modal-backdrop hidden" id="job-modal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2 id="modal-title"></h2>
+        <div class="company" id="modal-company"></div>
+      </div>
+      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+    </div>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-body">
+      <h3>Description</h3>
+      <p id="modal-desc"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="copyDescription()">Copy Description</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportSinglePdf()">↓ PDF</button>
+      <a id="modal-url" href="#" target="_blank" rel="noopener" style="margin-left:auto">
+        <button class="btn btn-primary btn-sm">Open on Indeed →</button>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# proxies.txt — One proxy per line.
+# Supported formats:
+#   host:port                      (plain HTTP, no auth)
+#   http://host:port               (explicit HTTP)
+#   http://user:password@host:port (authenticated HTTP)
+#   socks5://host:port             (SOCKS5)
+#
+# Lines starting with '#' are ignored.
+#
+# Examples (replace with real proxies):
+#   192.168.1.100:8080
+#   http://10.0.0.1:3128
+#   http://alice:secret@proxy.example.com:8080
+#   socks5://127.0.0.1:1080
+#
+# You can also set proxies via the PROXY_LIST environment variable as a
+# comma-separated list:
+#   export PROXY_LIST="http://host1:port1,http://host2:port2"

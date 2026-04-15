@@ -1,0 +1,485 @@
+JOBHUNT AI — INTERVIEW PREP MODULE
+Claude Code Implementation Prompt
+================================================
+
+You are building a full Interview Prep module for JobHunt AI. Read every file before modifying
+it. Token-minimal throughout: surgical edits only, reuse all existing patterns, no rewrites of
+working code, no unnecessary comments, no padding.
+
+================================================
+CONSTRAINTS (READ FIRST)
+================================================
+
+- Read before every write — no exceptions
+- Reuse existing schemas, models, DB session, API conventions, and component patterns
+- Check requirements.txt and package.json before adding any dependency
+- No debug logs unless a logger already exists
+- LLM calls: use Groq API (free tier) — keep all prompts tight, no padding, no repetition
+- Cache all AI-generated Q&A per job session — never regenerate if already stored
+- One DB write per logical operation — batch inserts, never row-by-row in loops
+- Token discipline: the only Claude (Anthropic) call in this module is the initial Q&A
+  generation. All follow-up chat uses Groq. Do not call Anthropic for chat turns.
+
+================================================
+FEATURE OVERVIEW
+================================================
+
+A dedicated Interview Prep workspace tied to a specific job+resume optimization session.
+Persists everything in the database until the user explicitly deletes it.
+Feels premium: large readable UI, smooth animations, wide layout, left-side nav between modules.
+
+Modules:
+  1. Resume Preview     — optimized PDF for this job
+  2. Job Details        — title, description, metadata
+  3. Company Links      — website, careers, Glassdoor, LinkedIn, Indeed
+  4. Interview Q&A      — AI-generated questions + answers + follow-up chat
+  5. Brainstorm Chat    — free-form threaded chat for strategy and prep
+
+================================================
+BACKEND TASKS
+================================================
+
+------------------------------------------------------------
+TASK B1 — DB Models
+------------------------------------------------------------
+Read backend/app/models/ fully first.
+Add only models that do not already exist.
+
+InterviewSession
+  id: UUID primary key
+  user_id: Optional[str]              (nullable for local/anon use)
+  job_title: str
+  job_description: str
+  company_name: str
+  company_website: Optional[str]
+  company_careers_url: Optional[str]
+  company_glassdoor_url: Optional[str]
+  company_linkedin_url: Optional[str]
+  company_indeed_url: Optional[str]
+  resume_pdf_path: str                (filesystem path to stored PDF)
+  salary_info: Optional[str]
+  location: Optional[str]
+  seniority: Optional[str]
+  created_at: datetime
+  updated_at: datetime
+
+InterviewQA
+  id: UUID primary key
+  session_id: FK -> InterviewSession
+  category: str                       (technical / behavioral / situational / role-specific)
+  question: str
+  answer: str
+  order_index: int
+
+InterviewChatMessage
+  id: UUID primary key
+  session_id: FK -> InterviewSession
+  role: str                           (user / assistant)
+  content: str
+  created_at: datetime
+
+BrainstormThread
+  id: UUID primary key
+  session_id: FK -> InterviewSession
+  title: str
+  created_at: datetime
+  updated_at: datetime
+
+BrainstormMessage
+  id: UUID primary key
+  thread_id: FK -> BrainstormThread
+  role: str                           (user / assistant)
+  content: str
+  created_at: datetime
+
+Add Alembic migration only if alembic.ini or migrations/ already exists in the project.
+Otherwise add models to the existing models file and note that manual migration is needed.
+
+------------------------------------------------------------
+TASK B2 — Groq Chat Service
+------------------------------------------------------------
+Create backend/app/services/groq_chat.py
+
+- Use httpx async to call Groq's OpenAI-compatible endpoint:
+    POST https://api.groq.com/openai/v1/chat/completions
+    Model: llama3-8b-8192  (fast, free tier)
+    Auth: Bearer {GROQ_API_KEY} from environment
+- Single async function: groq_chat(messages: list[dict], max_tokens: int = 512) -> str
+- messages format: [{"role": "user"/"assistant"/"system", "content": "..."}]
+- Keep system prompts short — one sentence max
+- On error (non-200), raise a clean HTTPException with the status detail
+- Add GROQ_API_KEY to .env.example if it exists
+
+------------------------------------------------------------
+TASK B3 — Interview Q&A Generation Service
+------------------------------------------------------------
+Create backend/app/services/interview_qa_generator.py
+
+This makes ONE Anthropic Claude call per session (cached — never called again for same session).
+Check if InterviewQA rows already exist for the session_id before calling the API.
+If rows exist, return them from DB immediately without any API call.
+
+The single Claude prompt must generate all question categories in one request:
+
+PROMPT TEMPLATE (keep tight):
+"""
+Generate interview questions and strong answers for this candidate.
+
+JOB: {job_title} at {company_name}
+JOB DESCRIPTION (truncated to 800 chars): {jd_excerpt}
+CANDIDATE RESUME (truncated to 600 chars): {resume_excerpt}
+
+Return JSON only. No preamble. Schema:
+[
+  {
+    "category": "technical|behavioral|situational|role-specific",
+    "question": "...",
+    "answer": "..."
+  }
+]
+
+Generate 5 technical, 4 behavioral, 3 situational, 3 role-specific questions.
+Answers must reference the candidate's actual experience where possible.
+Be specific, not generic. No buzzwords.
+"""
+
+Parse the JSON response. Bulk-insert all InterviewQA rows in one DB operation.
+Return list[InterviewQA].
+
+------------------------------------------------------------
+TASK B4 — Company Links Enrichment Service
+------------------------------------------------------------
+Create backend/app/services/company_enrichment.py
+
+Given a company name, attempt to find its key URLs using a simple web search
+via the existing httpx client (use DuckDuckGo instant answer API or a search
+query — do NOT add a paid search API):
+
+  GET https://api.duckduckgo.com/?q={company_name}+careers&format=json&no_redirect=1
+
+Extract AbstractURL as the likely company website.
+For the other URLs (Glassdoor, LinkedIn, Indeed, careers page), construct best-guess
+URLs from known patterns:
+  LinkedIn:  https://www.linkedin.com/company/{slug}
+  Glassdoor: https://www.glassdoor.com/Reviews/{slug}-reviews.htm
+  Indeed:    https://www.indeed.com/cmp/{slug}
+
+Where slug = company name lowercased, spaces replaced with hyphens.
+These are best-guess links — label them clearly in the frontend as "may require search."
+Return a CompanyLinks dataclass with all fields Optional[str].
+Do not call any paid API. Do not raise on failure — return whatever was found.
+
+------------------------------------------------------------
+TASK B5 — Resume PDF Storage
+------------------------------------------------------------
+Read backend/app/services/ats_optimizer.py and the generate route first.
+
+When an optimized resume is finalized:
+- Convert the resume markdown/text to PDF using an existing PDF library in requirements.txt
+  (check first — if reportlab, fpdf2, or weasyprint is already installed, use it)
+- If no PDF library exists, add fpdf2 to requirements.txt
+- Save the PDF to a local directory: backend/data/resumes/{session_id}.pdf
+  Create the directory if it does not exist
+- Store the path in InterviewSession.resume_pdf_path
+- Serve the file via a GET endpoint: /api/interview/{session_id}/resume.pdf
+  Use FileResponse from FastAPI
+
+------------------------------------------------------------
+TASK B6 — API Routes
+------------------------------------------------------------
+Create backend/app/api/routes/interview.py
+
+Register it in the main router. Endpoints:
+
+POST   /api/interview/session
+       Body: job_title, job_description, company_name, resume_text, salary_info?,
+             location?, seniority?
+       Creates InterviewSession, triggers company enrichment and Q&A generation
+       (Q&A generation is async background task — return session immediately,
+        Q&A populates in background)
+       Returns: full session object with company links
+
+GET    /api/interview/session/{session_id}
+       Returns full session with company links
+
+GET    /api/interview/session/{session_id}/qa
+       Returns all InterviewQA rows grouped by category
+
+GET    /api/interview/session/{session_id}/resume.pdf
+       Returns FileResponse of the stored PDF
+
+GET    /api/interview/sessions
+       Returns list of all sessions (id, job_title, company_name, created_at)
+       For sidebar/history
+
+DELETE /api/interview/session/{session_id}
+       Deletes session and all related rows (cascade)
+
+POST   /api/interview/{session_id}/chat
+       Body: message (user's new message)
+       Loads last 10 messages from DB as context (not full history — token efficiency)
+       Calls groq_chat with compact system prompt:
+         "You are an interview coach. Help the candidate prepare for {job_title} at
+          {company_name}. Be specific and concise."
+       Saves both user message and assistant response to DB
+       Returns: assistant response string
+
+GET    /api/interview/{session_id}/chat
+       Returns full chat history ordered by created_at
+
+DELETE /api/interview/{session_id}/chat/{message_id}
+       Deletes one message
+
+DELETE /api/interview/{session_id}/chat
+       Clears entire chat history for this session
+
+POST   /api/interview/{session_id}/brainstorm/thread
+       Body: title
+       Creates new BrainstormThread
+       Returns thread object
+
+GET    /api/interview/{session_id}/brainstorm/threads
+       Returns all threads for session
+
+PATCH  /api/interview/{session_id}/brainstorm/thread/{thread_id}
+       Body: title
+       Renames thread
+
+DELETE /api/interview/{session_id}/brainstorm/thread/{thread_id}
+       Deletes thread and all its messages
+
+POST   /api/interview/{session_id}/brainstorm/thread/{thread_id}/message
+       Body: message
+       Same pattern as interview chat — last 10 messages as context
+       System prompt: "You are a career strategist helping someone prepare for
+                       {job_title} at {company_name}. Think creatively and practically."
+       Saves and returns assistant response
+
+GET    /api/interview/{session_id}/brainstorm/thread/{thread_id}/messages
+       Returns all messages for thread
+
+------------------------------------------------------------
+TASK B7 — Schema (Pydantic)
+------------------------------------------------------------
+Read backend/app/schemas/ first.
+Create backend/app/schemas/interview.py with request/response models matching
+the endpoints above. Reuse patterns from existing schema files exactly.
+
+================================================
+FRONTEND TASKS
+================================================
+
+------------------------------------------------------------
+TASK F1 — Route Setup
+------------------------------------------------------------
+Read the router file (App.tsx or equivalent) first.
+Add route: /interview/:sessionId
+This page is the full Interview Prep workspace.
+Also add /interview (no session) that shows a list of past sessions with a
+"Start New Session" button.
+
+------------------------------------------------------------
+TASK F2 — Interview Prep Page Layout
+------------------------------------------------------------
+Read frontend/src/pages/ for conventions. Read an existing complex page fully first.
+Create frontend/src/pages/InterviewPrep.tsx
+
+Layout rules:
+- Full viewport width — no max-w container constraints on this page
+- Base font size: text-lg minimum throughout (larger than the rest of the app)
+- All cards and panels scale proportionally — no cramped spacing
+- Two-panel layout:
+    Left panel (w-56, fixed): navigation pane listing all modules
+    Right panel (flex-1): active module content
+
+Left navigation pane:
+- List items for each module: Resume, Job Details, Company Links, Q&A, Brainstorm
+- Active item highlighted
+- Clicking an item smoothly scrolls or transitions to that module
+- Styled with existing glass-card utility class
+- Each item has a subtle icon (use lucide-react icons already installed)
+
+Right panel:
+- Modules render as sections or as swapped panels (choose whichever is simpler
+  given existing patterns — read first)
+- All panel transitions use CSS transition with opacity and translateY:
+    entering: opacity-0 translate-y-2 -> opacity-100 translate-y-0
+    duration-300 ease-out
+- No jitter — use will-change: transform on animated elements
+
+Hide the top navigation bar on this page (same pattern already implemented for
+/optimize and /cover-letter — read that implementation and reuse it exactly).
+
+------------------------------------------------------------
+TASK F3 — Resume Preview Module
+------------------------------------------------------------
+Create frontend/src/components/interview/ResumePreview.tsx
+
+- Fetches PDF from GET /api/interview/{sessionId}/resume.pdf
+- Renders using an <iframe> or <embed> tag pointing to the PDF URL
+- Zoom controls: two buttons (zoom in / zoom out) that adjust the iframe scale
+  via CSS transform
+- Loading skeleton while PDF loads
+- Error state if PDF unavailable
+
+------------------------------------------------------------
+TASK F4 — Job Details Module
+------------------------------------------------------------
+Create frontend/src/components/interview/JobDetails.tsx
+
+- Displays: job title (large, bold), company name, location, seniority, salary
+- Full job description in a scrollable box with comfortable line height (leading-relaxed)
+- Clean typography — no tables, no bullet clutter
+
+------------------------------------------------------------
+TASK F5 — Company Links Module
+------------------------------------------------------------
+Create frontend/src/components/interview/CompanyLinks.tsx
+
+- Renders each company URL as a styled card with icon and label:
+    Official Website, Careers Page, LinkedIn, Glassdoor, Indeed
+- Each card opens link in new tab
+- Cards that are null/missing show a "Search manually" placeholder in muted text
+- Apply glass-card hover effect (already defined globally)
+- Note under the section: "Links are auto-generated best guesses — verify before use"
+
+------------------------------------------------------------
+TASK F6 — Interview Q&A Module
+------------------------------------------------------------
+Create frontend/src/components/interview/InterviewQA.tsx
+
+Q&A Section:
+- Fetches GET /api/interview/{sessionId}/qa
+- Shows a loading state while Q&A is generating in the background
+  (poll every 3 seconds until data arrives, max 60 seconds)
+- Groups questions by category with a category header
+- Each question is a card that expands on click to show the answer
+  (accordion pattern — smooth max-height transition, not abrupt toggle)
+- Large readable text throughout
+
+Follow-up Chat:
+- Below the Q&A cards, a full chat UI
+- Message history loads from GET /api/interview/{sessionId}/chat
+- Input at the bottom: textarea (auto-resizing) + Send button
+- User messages right-aligned, assistant messages left-aligned
+- Each message has a delete button (small, appears on hover)
+- "Clear Chat" button at top right of chat panel
+- Smooth scroll to bottom on new message
+- Loading indicator (typing dots animation) while waiting for response
+
+------------------------------------------------------------
+TASK F7 — Brainstorm Chat Module
+------------------------------------------------------------
+Create frontend/src/components/interview/BrainstormChat.tsx
+
+Layout:
+- Two sub-panels side by side:
+    Left sub-panel (w-48): thread list
+    Right sub-panel (flex-1): active thread messages
+
+Thread list:
+- Lists all threads for the session
+- "New Thread" button at top
+- Each thread shows title, with edit (rename) and delete icons on hover
+- Active thread highlighted
+
+Thread chat:
+- Same chat UI pattern as InterviewQA follow-up chat
+- Thread title shown at top, editable inline on click
+- Message history loads for the active thread
+- All persistence identical to interview chat
+
+------------------------------------------------------------
+TASK F8 — Session List Page
+------------------------------------------------------------
+Create frontend/src/pages/InterviewSessions.tsx (route: /interview)
+
+- Lists all past sessions from GET /api/interview/sessions
+- Each row: company name, job title, created date, "Open" button
+- "Start New Session" button at top
+  (this button should also appear on the Optimize page after optimization completes
+   — read Optimize.tsx and add it there without restructuring the page)
+- Delete button per session (with confirmation)
+
+------------------------------------------------------------
+TASK F9 — Zustand Store
+------------------------------------------------------------
+Read frontend/src/store/ fully first.
+Add interview slice only if the store follows a slice pattern.
+If it's a single store, add fields directly.
+
+Fields to add:
+  activeSessionId: string | null
+  activeBrainstormThreadId: string | null
+  interviewNavModule: 'resume' | 'job' | 'links' | 'qa' | 'brainstorm'
+
+Actions:
+  setActiveSession, setActiveBrainstormThread, setInterviewNavModule
+
+------------------------------------------------------------
+TASK F10 — Global Styles for Interview Page
+------------------------------------------------------------
+Read the global CSS file (index.css or globals.css) first.
+
+Add scoped styles for the interview page only:
+
+.interview-page {
+  font-size: 1.125rem;   /* 18px base — larger than app default */
+  line-height: 1.75;
+}
+
+.interview-page h1 { font-size: 2rem; }
+.interview-page h2 { font-size: 1.5rem; }
+.interview-page h3 { font-size: 1.25rem; }
+
+.interview-panel-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.interview-panel-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+Apply .interview-page class to the root div of InterviewPrep.tsx only.
+Do not change font sizes on any other page.
+
+================================================
+ENVIRONMENT
+================================================
+
+Add to backend/.env.example (if it exists):
+  GROQ_API_KEY=                    # Get free key at console.groq.com
+  INTERVIEW_RESUME_DIR=data/resumes
+
+================================================
+VALIDATION
+================================================
+
+After all changes:
+1. cd backend && python -c "from app.services.groq_chat import groq_chat; print('OK')"
+2. cd backend && python -c "from app.api.routes.interview import router; print('OK')"
+3. cd frontend && npx tsc --noEmit
+4. Confirm /interview and /interview/:sessionId routes exist in the router file
+
+Do not start servers. Do not run the full app.
+
+================================================
+FINAL RULES
+================================================
+
+- Read before every write, every time
+- Q&A is generated once per session and cached in DB — never regenerated
+- Groq chat context window: last 10 messages only — never send full history
+- Company links: best-guess construction + DuckDuckGo only — no paid APIs
+- All animations via CSS transitions only — no animation libraries
+- glass-card utility class already exists — apply it, do not redefine it
+- If something already works, leave it alone
+- Minimal new code. Maximum user value.
+- The goal: a premium, persistent, AI-powered interview workspace the user
+  actually wants to live in while preparing for their dream job
+
+================================================
+END OF PROMPT
+================================================

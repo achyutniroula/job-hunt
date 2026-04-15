@@ -1,0 +1,54 @@
+[
+  {
+    "job_id": "ca6854c985d970e9",
+    "title": "Software Developer",
+    "company": "CenterLine (Windsor) Limited",
+    "location": "LaSalle, ON N9J 3T8",
+    "salary": "$50,000–$70,000 YEARLY",
+    "description": "This position is an on-site, entry-level, full-stack development role and reports to the Software Development Supervisor.",
+    "posted_date": 1775451600000,
+    "url": "https://ca.indeed.com/rc/clk?jk=ca6854c985d970e9&bb=uFxEIo_NRs3BKhYE8_8WuPLhAIBuLXujM-tEXUQC4I9E3y3aQndw8SbuVQQmUiQO4nVKDIyhmbgg0d9vMI5pEttCqoS5glJMSa0FlvJd8_1566QOkGNKB0MXlxz0DOHr6dJQPtkceZmDDfYo2Ou3Pka_mzPjCJT_pGNAVd8H3PK2IHmBQwnVlTmgqy1SPPIrNps1HS5nQskE890gquh36x2gnJbkhc9KnV0MOdafOvs%3D&xkcb=SoBU67M3l8l1Cb0Rqp0LbzkdCdPP&fccid=55a40e1a1ed8f0cc&vjs=3",
+    "employment_type": null,
+    "remote": false,
+    "company_rating": 3.4
+  },
+  {
+    "job_id": "89b63c4ecdec800c",
+    "title": "Automation Specialist",
+    "company": "DataRealm Inc.",
+    "location": "Windsor, ON N8Y 4T6",
+    "salary": "{'max': 120000, 'min': 0, 'type': 'YEARLY'}",
+    "description": "In this role, you would develop and support software and data solutions used within automated manufacturing environments. Monthly social events and activities.",
+    "posted_date": 1773378000000,
+    "url": "https://ca.indeed.com/rc/clk?jk=89b63c4ecdec800c&bb=uFxEIo_NRs3BKhYE8_8WuKMVR3JYTUiUNlZlXiEDykIrgphtlGEouGdnFEw6__pXzbJvV408CQhsoZ38Xi3WnXVnBG7sP-nXGRb3tksvnoh8Pwg5GwDQnRkoXjBSnow8xmG07N0WyhkYEA1cKLXu_T1HZyWPkLBxr5YJq2qFYuKDVYRcYiwuaHah1lYN2nXXqvG1sPaAuwGOO-c6Gz7pQyxVEuEYuv1kvLQO3f7j5po%3D&xkcb=SoDg67M3l8l1Cb0Rqp0KbzkdCdPP&fccid=df58309ecf913c99&cmp=Datarealm&ti=Automation+Specialist&vjs=3",
+    "employment_type": null,
+    "remote": false,
+    "company_rating": 2.3
+  },
+  {
+    "job_id": "d74993a5799da1b8",
+    "title": "full stack Web developer",
+    "company": "MNSi- Managed Network Systems Inc.",
+    "location": "Windsor, ON N8W 1H4",
+    "salary": "$35–$40 HOURLY",
+    "description": "Determine hardware and software requirements to achieve optimal server performance. Write, modify, integrate and test software code. Hours: 80 hours bi-weekly.",
+    "posted_date": 1775106000000,
+    "url": "https://ca.indeed.com/rc/clk?jk=d74993a5799da1b8&bb=uFxEIo_NRs3BKhYE8_8WuMRQqkHg23gE6bFBRhEtMvTyv4rO-j-2S7tzT5czLxtzvbeaPw512nU3wj6Is8Xlc1UPNlQcNbnyjxc74yDXRoZ7bAgJwSA93iZZhxflMrYLVDn95P8rpw3-OSEk4xJxKZYk8BDjo-ll0bZlATXrsi4hQLnH-LoLu6t9ckk88KbpqMgUxZ9xQr5msuCKICy90-nkSXc-Wt7xW9XubhH46d0%3D&xkcb=SoB967M3l8l1Cb0Rqp0JbzkdCdPP&fccid=05ee7db9db2cb84c&vjs=3",
+    "employment_type": "Full-time, Permanent",
+    "remote": false,
+    "company_rating": null
+  },
+  {
+    "job_id": "89e164da852eb6c3",
+    "title": "Developer",
+    "company": "HUB International",
+    "location": "Windsor, ON N8W 3R4",
+    "salary": "$70,000–$80,000 YEARLY",
+    "description": "Experience building frontend and backend systems using common frameworks; we use Django and React. We offer full time in-office and hybrid flexibility.",
+    "posted_date": 1773205200000,
+    "url": "https://ca.indeed.com/rc/clk?jk=89e164da852eb6c3&bb=uFxEIo_NRs3BKhYE8_8WuLX1ASJ_t-ZY6abW2EjteSz4FhRwTMYT_o-ID3cCJaSQ1MUPI3B6lTIGpwTUsl4bsMlntCmnE43-GDrhTYJ_syN-4F6lEsygoHJpRv--m2-kMMdZn8bAb0JW1BiPvrqQOZvY_rvMEq0Z26Nzrnu6r9KxocmqGXHtxZBmXwzsSbuB7diSu7rOpN3uASIOXeo5Z9bve8-U9F5UbeoDO2ggkjY%3D&xkcb=SoDJ67M3l8l1Cb0Rqp0IbzkdCdPP&fccid=facab5dee1aa0a96&vjs=3",
+    "employment_type": null,
+    "remote": false,
+    "company_rating": 3.5
+  }
+]

@@ -1,0 +1,192 @@
+
+
+Backend, frontend, junior, software, developer, engineer, cloud, database
+
+
+Phase 1:
+
+> Not all postings from indeed are indexed onto my site, it should be able to index all postings.
+
+> There should be a feature on resume/cover letter optimization page where I can insert a job posting url from any of the supported platforms (All 7 that is supported) and it will optimize my resume/cover letter.
+
+> The output of the pdf should be LaTeX file as well (copy-paste able box) apart from the .txt file. I'm using Overleaf to generate LaTeX/pdf files in a specific template located at "D:\Projects\job-hunt\Resumes\source.txt", remember to maintain the structure of the template, just gracefully change the "actual words" or contents onto that template which should be reflected on the provided LaTeX content after optimization. 
+
+>  The ATS Score Estimate box should be expandable and should show how I was graded, and should show what I should add on my resume and what skills I should have to even better my resume and score the max number.
+
+> Be very wise about the tokens spent, always be efficient with token usage and use the minimal amount to get the max work done.
+
+Good Luck!
+
+
+Phase 1.1:
+
+> There should be an option to incorporate those changes again, on the resume optimization page after ATS' suggested improvements, after which score would be evaluated again. After that "What Changed" Box should be changed again.
+
+> The resume optimization page's content is cluttered too much on the right hand side with ATS breakdown, What changed section, Resume Box. Arrange them such that everything is nicely arranged uniformly throughout the page.
+
+
+> Be very wise about the tokens spent, always be efficient with token usage and use the minimal amount to get the max work done.
+
+
+Good Luck!
+
+Phase 1.3:
+
+> Incorporate Strategic Resume Psychology  
+When optimizing the resume, apply the principles of strategic framing and selective storytelling inspired by modern job‑search psychology:
+
+1. Truthful Job Title Alignment  
+If the user’s past responsibilities match the target role more closely than their literal job title, adjust the title within truthful boundaries to better reflect the actual work performed.
+Example: If the user performed strategy, product, or operations work, the optimized title should reflect those functions rather than a generic label.
+
+2. Selective Content Inclusion  
+Only include experiences, achievements, and skills that directly support the target job. Remove unrelated roles or tasks that do not strengthen the narrative. Prioritize projects, technologies, and outcomes that align with the job posting.
+
+3. Strategic Storytelling  
+Reframe the user’s experience to emphasize impact, relevance, and alignment with the job description. Highlight shipped products, technical contributions, platforms used, and measurable outcomes.
+The goal is to present the strongest, most relevant version of the truth.
+
+4. No Fabrication  
+Never invent skills, roles, or achievements. Only enhance clarity, relevance, and framing of what the user has actually done.
+
+5. Maintain Token Efficiency  
+Always optimize for minimal token usage while preserving clarity, accuracy, and high‑quality output.
+
+
+Phase 2:
+
+> I really want you to make the Resume optimization engine, the best there is out there. It should really be something phenomenal. Improve it and test it and compare with the previous results and everything, in general do everything you can to make it the best.  
+
+
+Phase 3:
+
+> Add LaTeX Resume Converter  
+Integrate a LaTeX conversion feature into the project so the final optimized resume can be exported as a LaTeX‑backed PDF. The system should take the optimized resume content, inject it into the existing LaTeX template, and produce both:
+– a copy‑paste‑ready LaTeX code block
+– a rendered PDF version
+Use the Overleaf template located at:
+D:\Projects\job-hunt\Resumes\source.txt  
+Maintain the exact structure and formatting of the template; only replace the textual content.
+
+Token Efficiency  
+Always operate with strict token efficiency. Use the minimum number of tokens required to complete the task while preserving accuracy and template integrity.
+
+
+Phase 4:
+
+> The cover letter should have no dashes anywhere. It should also allow to download a word file.
+
+> Resume should be available to be downloaded in .pdf file in the same format like it was uploaded.
+
+> The job name/description should be visible on the resume and cover letter page, while viewing insights or optimizing/changing them.
+
+> Whenever I put indeed link on the resume page: It shows this error: Could not fetch URL: Client error '403 Forbidden' for url 'https://ca.indeed.com/viewjob?jk=1a538f3390713db6&from=shareddesktop_copy'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403
+Fix this, and make it work for not just indeed but for all 7 sites that the website supports. 
+
+> Remove the "Upgrade to Pro" button.
+
+> I should be able to choose different provinces in Canada too, apart from the whole country.
+
+> Make job scraping as aggressive as possible, as some of the jobs are still not showing specially from indeed.
+
+> Be sure to debug and test everything thoroughly after implementing it.
+
+> Make sure to show a prompt when the user decides to leave optimization page, and when all the generated contents could be lost.
+
+> Clean up the dashboard page to display jobs, in bigger boxes, and filter options should look neat, "big/relaxed", and aesthetic too. Also the cover letter page should have it's contents at the center of the screen.
+
+
+
+Phase 4.1
+
+1. One‑Page Resume Limit  
+The optimized resume must always remain one page maximum, including the LaTeX version. Enforce strict length control so the final output never exceeds a single page.
+
+2. Preserve Actual URLs  
+Retain the full, literal text URLs for LinkedIn, GitHub, and any other links exactly as they appeared in the original resume.
+
+3. No New Dashes  
+Do not introduce any new dashes anywhere in the resume or cover letter. Only keep dashes that were already present in the original uploaded resume.
+
+4. Roll Back “Strategic Resume Psychology”  
+Remove all previously added logic related to job‑title reinterpretation, selective storytelling, strategic framing, narrative reshaping, or inferred role alignment.
+The optimizer should not reinterpret job titles, reframe responsibilities, or selectively rewrite content based on psychological strategy.
+Only clean, clarify, and optimize what the user actually wrote — nothing more.
+
+5. Careful Keyword Integration 
+You may carefully and minimally mention relevant job‑required keywords only when they naturally fit into the user’s existing content.
+Do not force them, do not overuse them, and do not add anything the user did not already imply.
+The goal is subtle alignment — not rewriting the resume around keywords.
+
+6. Token Efficiency  
+Always operate with strict token efficiency. Use the minimum number of tokens required to complete the task while preserving accuracy, formatting, and template integrity.
+
+
+Phase 4.444:
+
+ Backend (new files):
+  - github_ingestion.py — async GitHub API client; extracts username from URL; fetches up to 100 repos; concurrently fetches
+  languages + README for top 8; returns GitHubProfile with aggregated language totals; gracefully handles rate limits
+  - linkedin_ingestion.py — httpx fetch of public LinkedIn HTML; BS4 parsing of name/headline/experience/education/skills; detects
+  auth-wall and returns LinkedInProfile(linkedin_unavailable=True) silently
+  - skill_inference.py — pure Python logic; language in 3+ repos → confirmed, 1–2 → inferred; DevOps/cloud inference from
+  topics/README; notable projects from stars/forks; seniority signals from titles; domain classification; deduplication
+
+  Backend (edits):
+  - schemas/resume.py — added github_urls, linkedin_url to ATSOptimizeRequest; added transparency_report, interview_prep,
+  gap_analysis, linkedin_unavailable to ATSOptimizeResponse
+  - ats_optimizer.py — added _extract_tag() helper; added optimize_with_profile() — one Claude call with structured XML prompt
+  covering job analysis, gap analysis, rewrite, transparency report, and interview prep; shares _generate_latex() concurrently
+  - routes/generate.py — added asyncio import + 3 new service imports; /optimize now detects github_urls, runs ingestion concurrently
+   via asyncio.gather, calls optimize_with_profile() when profile data present, falls back to optimize_resume() otherwise
+
+  Frontend (new files):
+  - ProfileInputForm.tsx — GitHub URL/username input + dynamic "add repo" up to 10 + LinkedIn URL with helper text
+  - TransparencyReport.tsx — collapsible "Behind the Scenes" panel with 3 tabs: What Changed / Gaps & Study Plan / Interview Prep
+
+  Frontend (edits):
+  - types/index.ts — 4 new fields on ATSOptimizeResponse
+  - api.ts — optimizeResume accepts github_urls, linkedin_url
+  - Optimize.tsx — ProfileInputForm above resume upload; githubUrls/linkedinUrl state passed to runOptimize; LinkedIn unavailable
+  banner; TransparencyReport rendered below resume viewer
+
+
+
+Phase 4.5:
+
+> One thing that can be done is role exaggeration depending on the job type, the role can be reframed as web-developer instead of research assistant, when the actual job was web development, technically this wouldn't be lying? So Change the name of roles/position that would best meet the needs of the given job, and it should be within the scope of what was done too!
+
+
+> The heading/subheading "Find jobs that
+actually fit.
+Scrape LinkedIn, Indeed, Glassdoor and more — all at once. Upload your resume and get AI match scores for every result."
+Should be on the left hand side of the landing page with a nice big font!
+
+
+> Semantic match scoring ATS optimization Human cover letters Real-time scraping should be at the bottom on the left hand side below the heading/subheading
+
+
+> The job search and resume box should be on the right hand side.
+
+
+> Every box/buttons in the website should have hover animations, i.e. it should lift up visibly when mouse is on it. All the boxes in the site and the side navigation panel should also be transparent glass like exactly the same as the top navigation panel. Should also have that "gradient effect" when mouse hovers on it Also remove the top navigation panel when the user is in optimize and cover letter page, as the side navigation is present. 
+
+
+> There should be an option to just search from one of the seven platforms at a time.
+
+
+> The font and contents should be bigger by like 2 points for both optimize and cover letter page. 
+
+
+Be mindful of tokens and use them minimally and wisely. Please write a nice claude code prompt for this!
+
+
+Phase 5:
+
+
+
+
+Phase (not implemented)
+
+> There should be an page where both cover letter and resume can be combined into a single pdf (free API if feasible, else not), after users review them. It should only be available after resume and cover letter are generated.

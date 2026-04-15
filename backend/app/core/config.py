@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
 
+    # Groq
+    groq_api_key: str = ""
+
+    # GitHub
+    github_token: str = ""
+
     # Scraping
     scraper_max_workers: int = 6
     scraper_rate_limit_delay: float = 2.0

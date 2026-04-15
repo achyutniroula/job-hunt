@@ -24,9 +24,10 @@ export default function Navbar() {
     <nav
       className="fixed top-0 w-full z-50 flex justify-between items-center px-10 py-4"
       style={{
-        background: "rgba(30,32,36,0.8)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        background: "rgba(14,14,15,0.85)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        borderBottom: "1px solid rgba(72,72,75,0.22)",
       }}
     >
       {/* Logo */}
@@ -78,9 +79,9 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* RGB gradient bottom border */}
+      {/* Chromatic bottom accent */}
       <div className="absolute bottom-0 left-0 right-0 h-px"
-        style={{ background: "linear-gradient(to right, transparent, rgba(124,208,255,0.2), rgba(214,186,255,0.2), rgba(255,200,124,0.15), transparent)" }}
+        style={{ background: "linear-gradient(to right, transparent, rgba(100,200,255,0.25), rgba(198,119,221,0.2), rgba(0,255,200,0.15), transparent)" }}
       />
     </nav>
   );

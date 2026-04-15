@@ -124,9 +124,10 @@ export default function Dashboard() {
   const displayedJobs = itMode ? jobs.filter(isITJob) : jobs;
 
   const chipActive = {
-    background: "rgba(198,198,199,0.1)",
-    color: "#e2e2e8",
-    border: "1px solid rgba(198,198,199,0.25)",
+    background: "rgba(214,186,255,0.12)",
+    color: "#d6baff",
+    border: "1px solid rgba(214,186,255,0.3)",
+    boxShadow: "0 0 8px rgba(214,186,255,0.2)",
   };
 
   return (
@@ -217,21 +218,21 @@ export default function Dashboard() {
       {(session?.status === "done" || (session?.status === "running" && jobs.length > 0)) && (
         <div className="flex gap-6 max-w-7xl mx-auto">
           {/* Filter sidebar */}
-          <aside className="w-52 shrink-0 hidden lg:block">
-            <div className="sticky top-24 space-y-6">
-              <p className="text-[10px] font-manrope font-semibold text-text-muted uppercase tracking-[0.15em] flex items-center gap-2">
+          <aside className="w-56 shrink-0 hidden lg:block">
+            <div className="sticky top-24 space-y-6 flex flex-col items-center">
+              <p className="text-[10px] font-manrope font-semibold text-text-muted uppercase tracking-[0.15em] flex items-center gap-2 w-full justify-center">
                 <Filter className="w-3 h-3" /> Filters
               </p>
 
               {/* Sort */}
-              <div>
-                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope">Sort by</p>
+              <div className="w-full">
+                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope text-center">Sort by</p>
                 <div className="flex gap-1">
                   {(["posted_at", "match_score"] as const).map(v => (
                     <button key={v} onClick={() => setSortBy(v)}
                       className="flex-1 py-1.5 text-[10px] font-manrope uppercase tracking-wide rounded-md transition-all"
                       style={sortBy === v
-                        ? { background: "rgba(198,198,199,0.12)", color: "#e2e2e8", border: "1px solid rgba(198,198,199,0.2)" }
+                        ? { background: "rgba(214,186,255,0.12)", color: "#d6baff", border: "1px solid rgba(214,186,255,0.3)", boxShadow: "0 0 8px rgba(214,186,255,0.2)" }
                         : { background: "transparent", color: "#8a8680", border: "1px solid rgba(68,71,72,0.3)" }}>
                       {v === "posted_at" ? "Date" : "Score"}
                     </button>
@@ -280,8 +281,8 @@ export default function Dashboard() {
 
               {/* Min Score */}
               {matched && (
-                <div>
-                  <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope">Min match score</p>
+                <div className="w-full">
+                  <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope text-center">Min match score</p>
                   <select value={minScore ?? ""} onChange={e => setMinScore(e.target.value ? Number(e.target.value) : null)}
                     className="input-base text-xs py-2">
                     <option value="">All</option>
@@ -294,9 +295,9 @@ export default function Dashboard() {
               )}
 
               {/* Seniority */}
-              <div>
-                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope">Seniority</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="w-full">
+                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope text-center">Seniority</p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
                   {SENIORITY_OPTS.map(s => (
                     <button key={s} onClick={() => toggleSeniority(s)}
                       className="badge cursor-pointer capitalize transition-all"
@@ -308,9 +309,9 @@ export default function Dashboard() {
               </div>
 
               {/* Boards */}
-              <div>
-                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope">Source</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="w-full">
+                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope text-center">Source</p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
                   {BOARDS.map(b => (
                     <button key={b} onClick={() => toggleBoard(b)}
                       className="badge cursor-pointer transition-all"
