@@ -41,6 +41,40 @@ ALL_SCRAPERS: dict[str, type[BaseScraper]] = {
     "jobbank":      JobBankScraper,
 }
 
+# Virtual board name for the Canadian portal scanner
+_CANADA_PORTALS_BOARD = "canada-portals"
+
+
+async def _scrape_canada_portals(keywords: str, max_results: int) -> list[RawJob]:
+    """Adapter: calls scan_canadian_portals() and converts results to RawJob."""
+    from app.services.portal_scanner import scan_canadian_portals
+    keyword_list = [k.strip() for k in keywords.replace(",", " ").split() if k.strip()]
+    if not keyword_list:
+        keyword_list = [keywords]
+    try:
+        jobs = await asyncio.wait_for(
+            scan_canadian_portals(keywords=keyword_list, ats_types=["greenhouse", "lever", "ashby"]),
+            timeout=60.0,
+        )
+        raw: list[RawJob] = []
+        for j in jobs[:max_results]:
+            raw.append(RawJob(
+                title=j["title"],
+                board=j.get("board", _CANADA_PORTALS_BOARD),
+                company=j.get("company"),
+                location=j.get("location"),
+                description=j.get("description"),
+                is_remote=j.get("is_remote", False),
+                job_url=j.get("job_url"),
+            ))
+        return raw
+    except asyncio.TimeoutError:
+        logger.warning("[canada-portals] timed out")
+        return []
+    except Exception as exc:
+        logger.error("[canada-portals] error: %s", exc)
+        return []
+
 
 async def run_scrape_session(
     session_id: str,
@@ -141,8 +175,63 @@ async def run_scrape_session(
             logger.info("[%s] saved %d new jobs (total %d)", board_name, len(new_jobs), total_saved)
             return len(new_jobs)
 
+    async def _canada_portals_and_save() -> int:
+        """Scrape Canadian portals and immediately persist results."""
+        nonlocal total_saved
+        raw_jobs = await _scrape_canada_portals(keywords, max_per_board)
+        if not raw_jobs:
+            return 0
+
+        async with db_lock:
+            new_jobs: list[Job] = []
+            for raw in raw_jobs:
+                key = f"{str(raw.title or '').lower()}|{str(raw.company or '').lower()}"
+                if key in seen:
+                    continue
+                seen.add(key)
+                new_jobs.append(Job(
+                    id=str(uuid.uuid4()),
+                    session_id=session_id,
+                    title=raw.title,
+                    company=raw.company,
+                    location=raw.location,
+                    salary_min=raw.salary_min,
+                    salary_max=raw.salary_max,
+                    salary_currency=raw.salary_currency,
+                    salary_interval=raw.salary_interval,
+                    description=raw.description,
+                    skills=json.dumps([s for s in raw.skills if isinstance(s, str)]),
+                    seniority_level=raw.seniority_level,
+                    employment_type=raw.employment_type,
+                    is_remote=raw.is_remote,
+                    board=raw.board,
+                    job_url=raw.job_url,
+                    posted_at=raw.posted_at,
+                ))
+
+            if not new_jobs:
+                return 0
+
+            async with AsyncSessionLocal() as db:
+                for job in new_jobs:
+                    db.add(job)
+                session_obj = await db.get(ScrapeSession, session_id)
+                if session_obj:
+                    total_saved += len(new_jobs)
+                    session_obj.job_count = total_saved
+                await db.commit()
+
+            logger.info("[canada-portals] saved %d new jobs (total %d)", len(new_jobs), total_saved)
+            return len(new_jobs)
+
+    # Include Canadian portals unless caller specified a board list that excludes it
+    include_canada = not boards or _CANADA_PORTALS_BOARD in boards
+    tasks = [_scrape_and_save(b) for b in enabled_boards]
+    if include_canada:
+        tasks.append(_canada_portals_and_save())
+
     # Run all boards concurrently; each writes as it finishes
-    await asyncio.gather(*[_scrape_and_save(b) for b in enabled_boards])
+    await asyncio.gather(*tasks)
 
     # Finalise session
     async with AsyncSessionLocal() as db:

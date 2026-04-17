@@ -11,12 +11,18 @@ import Spinner from "@/components/ui/Spinner";
 import type { Job } from "@/types";
 
 const SENIORITY_OPTS = ["internship", "junior", "mid", "senior", "lead", "executive"];
-const BOARDS = ["linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank"];
+const BOARDS = ["linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank", "greenhouse", "lever", "ashby", "custom"];
 const BOARD_LABELS: Record<string, string> = {
   linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor",
   ziprecruiter: "ZipRecruiter", google: "Google", eluta: "Eluta", jobbank: "JobBank",
+  greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", custom: "Direct Portals",
 };
+const BOARD_GROUPS = [
+  { label: "Job Boards", keys: ["linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank"] },
+  { label: "Canadian Portals", keys: ["greenhouse", "lever", "ashby", "custom"] },
+];
 const POLL_MS = 3000;
+const FIT_POLL_MS = 6000;
 
 export default function Dashboard() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -26,6 +32,7 @@ export default function Dashboard() {
   const [jobs,            setJobs]           = useState<Job[]>([]);
   const [matching,        setMatching]        = useState(false);
   const [matched,         setMatched]         = useState(false);
+  const [gradingActive,   setGradingActive]   = useState(false);
   const [remoteFilter,    setRemoteFilter]    = useState(false);
   const [boardFilter,     setBoardFilter]     = useState<string[]>([]);
   const [seniorityFilter, setSeniorityFilter] = useState<string[]>([]);
@@ -41,31 +48,18 @@ export default function Dashboard() {
     enabled: !!sessionId,
   });
 
-  useEffect(() => {
-    if (session?.status === "done") {
-      setActiveSession(session);
-      fetchJobs();
-    } else if (session?.status === "running" && (session?.job_count ?? 0) > 0) {
-      fetchJobs();
-    }
-  }, [session?.status, session?.job_count]);
-
   const fetchJobs = useCallback(async () => {
     if (!sessionId) return;
     const params: Record<string, unknown> = { sort_by: sortBy, limit: 100 };
     if (remoteFilter) params.remote_only = true;
-    if (boardFilter.length) params.boards = boardFilter.join(",");
     if (seniorityFilter.length) params.seniority = seniorityFilter.join(",");
     if (minScore !== null) params.min_score = minScore;
+    if (boardFilter.length) params.boards = boardFilter.join(",");
     const data = await getJobs(sessionId, params as any);
     setJobs(data);
   }, [sessionId, remoteFilter, boardFilter, seniorityFilter, minScore, sortBy]);
 
-  useEffect(() => {
-    if (session?.status === "done") fetchJobs();
-  }, [remoteFilter, boardFilter, seniorityFilter, minScore, sortBy]);
-
-  const handleMatch = async () => {
+  const handleMatch = useCallback(async () => {
     if (!resumeFilename || !sessionId) return;
     setMatching(true);
     try {
@@ -73,13 +67,53 @@ export default function Dashboard() {
       setJobs(scored);
       setMatched(true);
       setSortBy("match_score");
-      toast.success("Jobs matched against your resume!");
+      toast.success("Jobs matched — AI grades loading…");
+      setGradingActive(true);
     } catch {
       toast.error("Matching failed — try again");
     } finally {
       setMatching(false);
     }
-  };
+  }, [resumeFilename, sessionId]);
+
+  // Trigger matching automatically when scrape finishes
+  useEffect(() => {
+    if (session?.status === "done") {
+      setActiveSession(session);
+      fetchJobs();
+      if (resumeFilename && !session.resume_filename && !matched && !matching) {
+        handleMatch();
+      }
+      if (session.resume_filename && !matched) {
+        setMatched(true);
+        setSortBy("match_score");
+        setGradingActive(true);
+      }
+    } else if (session?.status === "running" && (session?.job_count ?? 0) > 0) {
+      fetchJobs();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.status, session?.job_count, session?.resume_filename]);
+
+  useEffect(() => {
+    if (session?.status === "done") fetchJobs();
+  }, [remoteFilter, boardFilter, seniorityFilter, minScore, sortBy]);
+
+  // Poll for fit_analysis updates while background grading is running
+  useEffect(() => {
+    if (!gradingActive || !sessionId) return;
+    const interval = setInterval(async () => {
+      const data = await getJobs(sessionId, { sort_by: sortBy, limit: 100 });
+      setJobs(data);
+      const allGraded = data.length > 0 && data.every(j => j.fit_analysis !== null);
+      if (allGraded) {
+        setGradingActive(false);
+        clearInterval(interval);
+        toast.success("AI fit grades ready!", { id: "grading-done" });
+      }
+    }, FIT_POLL_MS);
+    return () => clearInterval(interval);
+  }, [gradingActive, sessionId, sortBy]);
 
   const toggleSeniority = (s: string) =>
     setSeniorityFilter(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
@@ -152,15 +186,28 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-2">
-          {resumeFilename && !matched && session?.status === "done" && (
-            <button className="btn-primary text-xs px-5 py-2" onClick={handleMatch} disabled={matching}>
-              {matching ? <><Spinner size="sm" />Matching…</> : "Match with Resume"}
+          {matching && (
+            <span className="badge animate-pulse" style={{ color: "#7cd0ff", background: "rgba(124,208,255,0.06)", border: "1px solid rgba(124,208,255,0.2)" }}>
+              <Spinner size="sm" />Matching…
+            </span>
+          )}
+          {!matching && matched && !gradingActive && (
+            <span className="badge" style={{ color: "#4ade80", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}>
+              ✓ Matched &amp; Graded
+            </span>
+          )}
+          {!matching && matched && gradingActive && (
+            <span className="badge animate-pulse" style={{ color: "#d6baff", background: "rgba(214,186,255,0.06)", border: "1px solid rgba(214,186,255,0.2)" }}>
+              ✦ AI grading…
+            </span>
+          )}
+          {!matching && !matched && resumeFilename && session?.status === "done" && (
+            <button className="btn-primary text-xs px-5 py-2" onClick={handleMatch}>
+              Match with Resume
             </button>
           )}
-          {matched && (
-            <span className="badge" style={{ color: "#4ade80", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}>
-              ✓ Matched
-            </span>
+          {!resumeFilename && session?.status === "done" && (
+            <span className="text-[10px] text-text-dim">Upload a resume on the home page to get AI grades</span>
           )}
         </div>
       </div>
@@ -193,12 +240,12 @@ export default function Dashboard() {
           <div className="text-center">
             <p className="font-manrope font-light text-text-primary text-lg">Scraping job boards…</p>
             <p className="text-text-muted text-sm mt-1 font-inter">
-              Searching {session?.boards?.length ?? 7} boards concurrently
+              Searching job boards + Canadian portals concurrently
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap justify-center">
-            {(session?.boards ?? BOARDS).map(b => (
-              <span key={b} className="badge animate-pulse">{BOARD_LABELS[b] ?? b}</span>
+          <div className="flex gap-2 flex-wrap justify-center max-w-lg">
+            {["LinkedIn", "Indeed", "Glassdoor", "ZipRecruiter", "Google", "Eluta", "JobBank", "Greenhouse", "Lever", "Ashby"].map(b => (
+              <span key={b} className="badge animate-pulse text-[10px]">{b}</span>
             ))}
           </div>
         </motion.div>
@@ -308,19 +355,29 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Boards */}
-              <div className="w-full">
-                <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope text-center">Source</p>
-                <div className="flex flex-wrap gap-1.5 justify-center">
-                  {BOARDS.map(b => (
-                    <button key={b} onClick={() => toggleBoard(b)}
-                      className="badge cursor-pointer transition-all"
-                      style={boardFilter.includes(b) ? chipActive : {}}>
-                      {BOARD_LABELS[b]}
-                    </button>
-                  ))}
+              {/* Boards — grouped */}
+              {BOARD_GROUPS.map(group => (
+                <div key={group.label} className="w-full">
+                  <p className="text-[10px] text-text-muted uppercase tracking-widest mb-2 font-manrope text-center">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {group.keys.map(b => (
+                      <button key={b} onClick={() => toggleBoard(b)}
+                        className="badge cursor-pointer transition-all"
+                        style={boardFilter.includes(b) ? chipActive : {}}>
+                        {BOARD_LABELS[b]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ))}
+
+              {/* Grading indicator */}
+              {gradingActive && (
+                <div className="w-full px-3 py-2 rounded-lg text-[10px] text-center"
+                  style={{ background: "rgba(214,186,255,0.06)", border: "1px solid rgba(214,186,255,0.15)", color: "#d6baff" }}>
+                  <span className="animate-pulse">AI grading in progress…</span>
+                </div>
+              )}
             </div>
           </aside>
 

@@ -43,6 +43,8 @@ async def init_db() -> None:
             "ALTER TABLE interview_sessions ADD COLUMN github_url TEXT",
             "ALTER TABLE interview_sessions ADD COLUMN github_context TEXT",
             "ALTER TABLE interview_sessions ADD COLUMN optimize_result TEXT",
+            "ALTER TABLE jobs ADD COLUMN archetype VARCHAR(64) DEFAULT ''",
+            "ALTER TABLE jobs ADD COLUMN fit_analysis TEXT",
         ]:
             try:
                 await conn.execute(__import__("sqlalchemy").text(col_sql))

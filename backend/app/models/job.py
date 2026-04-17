@@ -45,6 +45,8 @@ class Job(Base):
 
     # Matching
     match_score: Mapped[float | None] = mapped_column(Float)
+    archetype: Mapped[str] = mapped_column(String(64), default="")
+    fit_analysis: Mapped[str | None] = mapped_column(Text)   # JSON dict
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

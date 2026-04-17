@@ -20,7 +20,7 @@ import anthropic
 
 from app.core.config import get_settings
 from app.schemas.resume import ATSOptimizeResponse, ChangeItem
-from app.services.github_ingestion import GitHubProfile
+from app.services.github_ingestion import GitHubDigest, GitHubProfile
 from app.services.linkedin_ingestion import LinkedInProfile
 from app.services.skill_inference import UserSkillProfile
 
@@ -240,9 +240,10 @@ async def _generate_latex(optimized_text: str, client: anthropic.AsyncAnthropic)
             system=_LATEX_SYSTEM,
             messages=[{
                 "role": "user",
-                "content": _LATEX_USER.format(
-                    template=template,
-                    optimized_text=optimized_text[:4000],
+                "content": (
+                    _LATEX_USER
+                    .replace("{template}", template)
+                    .replace("{optimized_text}", optimized_text[:4000])
                 ),
             }],
         )
@@ -271,16 +272,18 @@ async def optimize_resume(
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     if pass_num > 1 and previous_improvements:
-        user_message = _REOPTIMIZE_USER_TEMPLATE.format(
-            job_description=job_description[:2000],
-            resume_text=resume_text[:4000],
-            improvements="\n".join(f"- {i}" for i in previous_improvements),
-            pass_num=pass_num,
+        user_message = (
+            _REOPTIMIZE_USER_TEMPLATE
+            .replace("{job_description}", job_description[:2000])
+            .replace("{resume_text}", resume_text[:4000])
+            .replace("{improvements}", "\n".join(f"- {i}" for i in previous_improvements))
+            .replace("{pass_num}", str(pass_num))
         )
     else:
-        user_message = _USER_TEMPLATE.format(
-            job_description=job_description[:2000],
-            resume_text=resume_text[:4000],
+        user_message = (
+            _USER_TEMPLATE
+            .replace("{job_description}", job_description[:2000])
+            .replace("{resume_text}", resume_text[:4000])
         )
 
     try:
@@ -427,14 +430,15 @@ async def optimize_with_profile(
                 lines.append(f"  README: {r.readme_excerpt[:300]}")
         github_summary = "\n".join(lines)
 
-    user_msg = _PROFILE_USER.format(
-        confirmed_skills=", ".join(skill_profile.confirmed_skills[:30]),
-        inferred_skills=", ".join(skill_profile.inferred_skills[:20]),
-        project_evidence=str(dict(list(skill_profile.project_evidence.items())[:15])),
-        seniority_signals="; ".join(skill_profile.seniority_signals),
-        resume_text=resume_text[:4000],
-        job_description=job_description[:2000],
-        github_summary=github_summary[:2000],
+    user_msg = (
+        _PROFILE_USER
+        .replace("{confirmed_skills}", ", ".join(skill_profile.confirmed_skills[:30]))
+        .replace("{inferred_skills}", ", ".join(skill_profile.inferred_skills[:20]))
+        .replace("{project_evidence}", str(dict(list(skill_profile.project_evidence.items())[:15])))
+        .replace("{seniority_signals}", "; ".join(skill_profile.seniority_signals))
+        .replace("{resume_text}", resume_text[:4000])
+        .replace("{job_description}", job_description[:2000])
+        .replace("{github_summary}", github_summary[:2000])
     )
 
     try:
@@ -594,10 +598,11 @@ async def optimize_for_session(
 
     github_summary = _build_rich_github_summary(github_context_json) if github_context_json else "No GitHub data."
 
-    user_msg = _SESSION_OPT_USER.format(
-        job_description=job_description[:2000],
-        github_summary=github_summary[:5000],
-        resume_text=resume_text[:4000],
+    user_msg = (
+        _SESSION_OPT_USER
+        .replace("{job_description}", job_description[:2000])
+        .replace("{github_summary}", github_summary[:5000])
+        .replace("{resume_text}", resume_text[:4000])
     )
 
     try:
@@ -636,6 +641,210 @@ async def optimize_for_session(
         latex_text=latex_text,
         changes_summary=[],
         change_items=[],
+        ats_score_before=score_before,
+        ats_score_after=score_after,
+        matched_keywords=matched,
+        missing_keywords=missing,
+        improvements=[],
+        transparency_report=transparency,
+        interview_prep=interview,
+        gap_analysis=gap,
+        linkedin_unavailable=False,
+        role_reframes=role_reframes,
+    )
+
+
+# ── Single-call digest optimizer ──────────────────────────────────────────────
+
+_DIGEST_SYSTEM = """\
+You are a world-class technical resume writer and ATS optimization specialist.
+
+You have been given three inputs:
+  1. The candidate's current resume
+  2. A target job description
+  3. The candidate's complete GitHub profile — every public repo they own, including
+     READMEs, full file trees, dependency files, CI/CD configs, and source code
+
+YOUR MISSION:
+Produce the single highest ATS score this candidate can legitimately achieve for this
+specific job, using only what is truthfully evidenced by their resume and GitHub repos.
+
+CORE PRINCIPLES:
+- Never fabricate. Every claim must trace to the resume text or a specific named GitHub
+  repo and file. If you cite a technology, name the repo it came from.
+- GitHub is ground truth. If a repo proves the candidate built something relevant that
+  they never mentioned on their resume, surface it — it is real experience they forgot
+  to claim. Name the repo explicitly.
+- Exact JD keywords beat synonyms. ATS systems do literal string matching. If the JD
+  says "distributed systems", use that exact phrase, not "scalable architecture".
+- Quantify with evidence. Use GitHub signals: stars, forks, number of files, dependency
+  count, CI/CD presence. Infer conservatively — a 200-file repo with CI/CD implies
+  production-grade work. Never invent numbers.
+- XYZ bullet format: "Accomplished [X] as measured by [Y], by doing [Z]."
+- One page. Bullets <= 15 words. If content is too long, tighten wording — never
+  remove sections. No em dashes. No buzzwords: spearheaded, leveraged, utilized,
+  streamlined, robust, cutting-edge, passionate about, results-driven.
+- ATS score is your calibrated expert estimate of how a real ATS parses this resume
+  against this JD. A resume with near-complete keyword coverage and strong formatting
+  scores 88-93. Do not inflate. Do not deflate.
+"""
+
+_DIGEST_USER = """\
+<resume>
+{resume_text}
+</resume>
+
+<job_description>
+{job_description}
+</job_description>
+
+<github_profile>
+{github_context}
+</github_profile>
+
+Analyze all three inputs thoroughly. Then produce your output in this exact structure:
+
+<optimized_resume>
+Complete rewritten resume as plain text, ready to copy.
+Must include: summary, experience (with rewritten bullets), skills, projects (exactly 5,
+drawn from GitHub repos most relevant to this JD — use exact repo names).
+</optimized_resume>
+
+<ats_score_before>
+[single integer 0-100: your calibrated estimate of the ORIGINAL resume's ATS score against this JD]
+</ats_score_before>
+
+<ats_score_after>
+[single integer 0-100: your calibrated estimate of the OPTIMIZED resume's ATS score]
+</ats_score_after>
+
+<matched_keywords>
+[comma-separated: every JD keyword or phrase present in the optimized resume]
+</matched_keywords>
+
+<missing_keywords>
+[comma-separated: JD keywords the candidate cannot honestly claim — genuine gaps only]
+</missing_keywords>
+
+<transparency_report>
+For every change made: what changed, why, and the exact source (resume or github:repo-name/file).
+Call out explicitly: which GitHub repos surfaced skills not on the original resume,
+which repo names were used in the projects section and why, which JD keywords were
+injected and where. Be specific — vague entries like "improved bullet" are not acceptable.
+</transparency_report>
+
+<gap_analysis>
+Skills and experience the JD requires that are absent from both the resume and all GitHub
+repos. Be honest. Do not soften genuine gaps. For each gap suggest one concrete way to
+address it (course, project idea, certification).
+</gap_analysis>
+
+<interview_prep>
+For every skill prominently featured — especially any surfaced from GitHub that was not
+on the original resume: one realistic interview question the candidate will face + a
+one-sentence honest answer framework grounded in their actual GitHub evidence.
+</interview_prep>
+
+<role_reframing>
+For each job title on the resume where the actual described work maps more precisely to a
+different function-based title:
+ORIGINAL: <current title>
+NEW: <more accurate title based on the bullets and GitHub work>
+WHY: <one sentence citing specific evidence>
+---
+Only include renamed roles. Output nothing here if no renames are warranted.
+Do not inflate seniority.
+</role_reframing>
+
+---CHANGES---
+One line per change. Format: [TYPE] description | source: resume or github:repo-name
+TYPE must be one of: ROLE | BULLET | SKILL | PROJECT | KEYWORD
+"""
+
+
+async def optimize_with_digest(
+    resume_text: str,
+    job_description: str,
+    github_digest: "GitHubDigest | None" = None,
+) -> ATSOptimizeResponse:
+    """
+    Full-depth ATS optimizer. Claude receives the complete resume, complete JD,
+    and complete GitHub context serialized from GitHubDigest.to_context_string().
+    No pre-filtering. No Python-side scoring. One Claude call.
+    """
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    github_context = (
+        github_digest.to_context_string()
+        if github_digest is not None
+        else "No GitHub data provided."
+    )
+
+    user_msg = (
+        _DIGEST_USER
+        .replace("{resume_text}", resume_text)
+        .replace("{job_description}", job_description)
+        .replace("{github_context}", github_context)
+    )
+
+    try:
+        message = await client.messages.create(
+            model=settings.anthropic_model,
+            max_tokens=6000,
+            system=_DIGEST_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error (digest optimize): %s", exc)
+        raise
+
+    full = message.content[0].text if message.content else ""
+
+    optimized_text = _extract_tag(full, "optimized_resume") or resume_text
+
+    def _safe_int(tag: str, fallback: int) -> int:
+        raw = _extract_tag(full, tag).strip()
+        try:
+            return max(0, min(100, int(raw)))
+        except (ValueError, TypeError):
+            return fallback
+
+    score_before = _safe_int("ats_score_before", 0)
+    score_after  = _safe_int("ats_score_after", 0)
+
+    def _csv_tag(tag: str) -> list[str]:
+        raw = _extract_tag(full, tag)
+        if not raw:
+            return []
+        return [k.strip() for k in raw.split(",") if k.strip()][:40]
+
+    matched  = _csv_tag("matched_keywords")
+    missing  = _csv_tag("missing_keywords")
+
+    transparency  = _extract_tag(full, "transparency_report")
+    gap           = _extract_tag(full, "gap_analysis")
+    interview     = _extract_tag(full, "interview_prep")
+    role_reframes = _parse_role_reframes(_extract_tag(full, "role_reframing"))
+
+    if role_reframes:
+        transparency += "\n\nRole Titles Reframed:\n" + "\n".join(
+            f"- {r['original']} -> {r['reframed']}: {r['justification']}"
+            for r in role_reframes
+        )
+
+    changes_raw = ""
+    if "---CHANGES---" in full:
+        changes_raw = full.split("---CHANGES---", 1)[1].strip()
+    change_items, changes_plain = _parse_changes(changes_raw)
+
+    latex_text = await _generate_latex(optimized_text, client)
+
+    return ATSOptimizeResponse(
+        original_text=resume_text,
+        optimized_text=optimized_text,
+        latex_text=latex_text,
+        changes_summary=changes_plain,
+        change_items=change_items,
         ats_score_before=score_before,
         ats_score_after=score_after,
         matched_keywords=matched,

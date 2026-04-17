@@ -1,3 +1,13 @@
+export interface FitAnalysis {
+  grade: string;
+  seniority: string;
+  user_level: string;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  tip: string;
+}
+
 export interface Job {
   id: string;
   session_id: string;
@@ -17,6 +27,8 @@ export interface Job {
   job_url: string | null;
   posted_at: string | null;
   match_score: number | null;
+  archetype: string;
+  fit_analysis: FitAnalysis | null;
   created_at: string;
 }
 

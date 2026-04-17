@@ -32,7 +32,8 @@
       "Bash(grep -i \"python\" *.txt *.toml *.cfg)",
       "Bash(ls -la *.ts *.js *.json)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(git:*)"
     ]
   }
 }

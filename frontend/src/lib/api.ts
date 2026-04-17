@@ -76,7 +76,7 @@ export const optimizeResume = (body: {
   github_urls?: string[];
   linkedin_url?: string;
 }): Promise<ATSOptimizeResponse> =>
-  api.post("/generate/optimize", body).then((r) => r.data);
+  api.post("/generate/optimize", body, { timeout: 360_000 }).then((r) => r.data);
 
 export const generateCoverLetter = (body: {
   resume_filename: string;
@@ -123,6 +123,9 @@ export const listInterviewSessions = () =>
 
 export const deleteInterviewSession = (sessionId: string) =>
   api.delete(`/interview/session/${sessionId}`).then((r) => r.data);
+
+export const renameInterviewSession = (sessionId: string, job_title: string) =>
+  api.patch(`/interview/session/${sessionId}/rename`, { job_title }).then((r) => r.data);
 
 export const updateSessionResume = (sessionId: string, resume_text: string) =>
   api.patch(`/interview/session/${sessionId}/resume`, { resume_text }).then((r) => r.data);

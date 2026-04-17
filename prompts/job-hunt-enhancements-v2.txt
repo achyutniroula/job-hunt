@@ -1,0 +1,713 @@
+# job-hunt Enhancements — Claude Code Prompt
+# Three independent modules. Each section is self-contained and can be run separately.
+# Token-conscious: read before write, mock tests, no unnecessary API calls during dev.
+
+---
+
+# ============================================================
+# MODULE 1 — ARCHETYPE DETECTION
+# File scope: backend/app/services/archetype_detector.py (NEW)
+#             backend/app/api/routes/jobs.py (EDIT)
+#             backend/app/models/ (EDIT — add archetype field)
+# ============================================================
+
+## CONTEXT
+Read these files before touching anything:
+- backend/app/services/groq_chat.py         — understand how Groq client is initialized
+- backend/app/models/ (all files)           — find the Job or JobResult model
+- backend/app/api/routes/jobs.py            — find where match results are returned
+
+## TASK
+Create backend/app/services/archetype_detector.py with a single async function:
+
+```
+async def detect_archetype(job_title: str, job_description: str) -> str
+```
+
+### Archetype list (Canadian market focused):
+- "Cloud/DevOps Engineer"
+- "Backend Engineer"
+- "Frontend Engineer"
+- "Full Stack Engineer"
+- "Data Engineer"
+- "ML/AI Engineer"
+- "Cybersecurity Analyst"
+- "Systems/Infrastructure"
+- "Software Developer"
+- "Other"
+
+### Groq call — keep it tight:
+- Model: llama-3.3-70b-versatile
+- Max tokens: 10  ← archetype name only, nothing else
+- System prompt (exact):
+  "You classify job postings. Reply with ONLY one of these exact labels:
+  Cloud/DevOps Engineer, Backend Engineer, Frontend Engineer, Full Stack Engineer,
+  Data Engineer, ML/AI Engineer, Cybersecurity Analyst, Systems/Infrastructure,
+  Software Developer, Other.
+  No explanation. No punctuation. Just the label."
+- User message: "Title: {job_title}\n\nDescription (first 300 chars): {description[:300]}"
+  ← 300 chars is enough. Do NOT send the full JD to save tokens.
+
+### Wire it into jobs.py:
+- Find the POST /api/jobs/{session_id}/match endpoint
+- After semantic scores are computed, call detect_archetype() for each job
+- Store result in the job record (add `archetype: str = ""` field to the Job model)
+- Run archetype detection concurrently using asyncio.gather() — one call per job, not sequential
+- If Groq call fails or times out, set archetype = "Other" silently — never crash the match flow
+
+### Archetype keyword weight profiles:
+Add a dict in archetype_detector.py (no API call — pure Python):
+
+```python
+ARCHETYPE_WEIGHTS = {
+    "Cloud/DevOps Engineer": {
+        "high": ["AWS", "GCP", "Azure", "Kubernetes", "Docker", "Terraform", "CI/CD",
+                 "GitHub Actions", "Helm", "Jenkins", "CloudFormation", "Ansible",
+                 "Linux", "bash", "IaC", "SRE", "monitoring", "Prometheus", "Grafana"],
+        "medium": ["Python", "Go", "networking", "security", "microservices", "observability"],
+    },
+    "Backend Engineer": {
+        "high": ["API", "REST", "microservices", "PostgreSQL", "Redis", "Python",
+                 "Node.js", "Java", "Go", "FastAPI", "Django", "SQL", "message queue"],
+        "medium": ["Docker", "AWS", "testing", "CI/CD", "GraphQL"],
+    },
+    "Frontend Engineer": {
+        "high": ["React", "TypeScript", "JavaScript", "CSS", "HTML", "Vue", "Next.js",
+                 "accessibility", "responsive", "webpack", "Vite"],
+        "medium": ["Node.js", "REST API", "testing", "performance"],
+    },
+    "Full Stack Engineer": {
+        "high": ["React", "Node.js", "TypeScript", "PostgreSQL", "REST API", "Docker",
+                 "Python", "AWS", "Next.js", "SQL"],
+        "medium": ["CI/CD", "Redis", "testing", "microservices"],
+    },
+    "Data Engineer": {
+        "high": ["Spark", "Airflow", "dbt", "Snowflake", "BigQuery", "ETL", "pipeline",
+                 "Python", "SQL", "Kafka", "data warehouse", "Redshift"],
+        "medium": ["AWS", "GCP", "Docker", "orchestration", "Databricks"],
+    },
+    "ML/AI Engineer": {
+        "high": ["PyTorch", "TensorFlow", "Python", "ML", "model", "training",
+                 "inference", "LLM", "NLP", "scikit-learn", "MLOps", "RAG"],
+        "medium": ["AWS", "Docker", "API", "data pipeline", "GPU", "CUDA"],
+    },
+    "Cybersecurity Analyst": {
+        "high": ["SIEM", "SOC", "incident response", "penetration testing", "firewall",
+                 "vulnerability", "compliance", "OSCP", "threat", "CISSP", "zero trust"],
+        "medium": ["Python", "Linux", "networking", "AWS", "identity management"],
+    },
+    "Systems/Infrastructure": {
+        "high": ["Linux", "networking", "TCP/IP", "DNS", "load balancer", "storage",
+                 "VMware", "bare metal", "RHEL", "kernel", "bash", "sysadmin"],
+        "medium": ["Python", "Ansible", "monitoring", "security", "cloud"],
+    },
+    "Software Developer": {
+        "high": ["Java", "Python", "C#", ".NET", "C++", "OOP", "algorithms",
+                 "data structures", "Git", "agile", "unit testing"],
+        "medium": ["REST API", "SQL", "Docker", "CI/CD"],
+    },
+    "Other": {
+        "high": [],
+        "medium": [],
+    },
+}
+```
+
+Export a function `get_archetype_weights(archetype: str) -> dict` that returns the profile.
+The matching service can call this to boost scores for keyword presence.
+
+## TEST
+Add to a new file backend/test_archetype.py:
+- Test with 3 hardcoded job title + description snippets (Cloud/DevOps, Backend, Frontend)
+- Mock the Groq API call — return a hardcoded archetype string
+- Assert the correct archetype label is returned
+- Assert ARCHETYPE_WEIGHTS has an entry for the returned label
+- Run: cd backend && python test_archetype.py
+- Fix any failures before proceeding
+
+---
+
+# ============================================================
+# MODULE 2 — AI-POWERED FIT ANALYSIS
+# File scope: backend/app/services/fit_analyzer.py (NEW)
+#             backend/app/api/routes/jobs.py (EDIT)
+#             backend/app/schemas/ (EDIT — add fit_analysis to response)
+#
+# DESIGN PRINCIPLE: Grade EVERY job. No filtering, no silent drops.
+# A low grade (D/F) is information, not a gate. The user decides.
+# Show all jobs to the user immediately after scraping — before
+# grading starts. Grades stream in and update each job as they complete.
+# ============================================================
+
+## CONTEXT
+Read these files before touching anything:
+- backend/app/services/groq_chat.py         — Groq client setup
+- backend/app/services/archetype_detector.py — only if Module 1 is already implemented
+- backend/app/api/routes/jobs.py            — find the match endpoint and response shape
+- backend/app/schemas/                      — find the job response schema
+
+## TASK
+
+### Step 0 — JD requirements extractor (pure Python, no API call)
+
+Write this function in fit_analyzer.py. It extracts only the requirements/
+qualifications section from a JD before sending to Groq — no boilerplate,
+no "about us", no benefits copy.
+
+```python
+# Section-start triggers — any line containing one of these (case-insensitive)
+# signals the start of the requirements block
+REQUIREMENTS_TRIGGERS = [
+    "requirement", "qualification", "what you'll need", "what we're looking for",
+    "what you bring", "you have", "you will have", "you should have",
+    "you must have", "must have", "must-have", "basic qualifications",
+    "minimum qualifications", "preferred qualifications", "nice to have",
+    "nice-to-have", "skills required", "skills we're looking for",
+    "experience required", "experience we're looking for",
+    "about you", "who you are", "what you need", "technical requirements",
+    "technical skills", "key skills", "core skills", "competencies",
+    "the ideal candidate", "we are looking for", "we're looking for",
+    "successful candidate", "you will need",
+]
+
+# Section-end triggers — stop collecting when one of these appears
+# after the requirements section has started
+STOP_TRIGGERS = [
+    "what we offer", "what we provide", "we offer", "benefits",
+    "perks", "compensation", "salary", "pay range", "total rewards",
+    "about us", "about the company", "about {", "our culture",
+    "why join", "why work", "equal opportunity", "diversity",
+    "accommodation", "accessibility", "application process",
+    "how to apply", "next steps",
+]
+
+def extract_requirements(jd: str) -> str:
+    """
+    Extract the requirements/qualifications section from a job description.
+    Returns up to 1500 chars of the requirements block.
+    Falls back to the first 1500 chars of the full JD if no trigger is found.
+    Never raises — always returns a non-empty string.
+    """
+    lines = jd.splitlines()
+
+    # Find where requirements section starts
+    start = None
+    for i, line in enumerate(lines):
+        stripped = line.strip().lower()
+        if any(t in stripped for t in REQUIREMENTS_TRIGGERS):
+            start = i
+            break
+
+    # No trigger found — fall back to first 1500 chars of full JD
+    if start is None:
+        return jd[:1500]
+
+    # Find where requirements section ends
+    end = len(lines)
+    for i, line in enumerate(lines[start + 1:], start + 1):
+        stripped = line.strip().lower()
+        if any(t in stripped for t in STOP_TRIGGERS):
+            end = i
+            break
+
+    section = "\n".join(lines[start:end]).strip()
+
+    # If extraction yielded almost nothing (header only), fall back
+    if len(section) < 80:
+        return jd[:1500]
+
+    return section[:1500]
+```
+
+### Step 1 — Seniority detection (pure Python, no API call)
+Used only to LABEL the job and the user for context in the Groq prompt.
+NOT used to filter or drop any job.
+
+```python
+def detect_seniority(job_title: str, job_description: str) -> str:
+    """Returns: "junior" | "mid" | "senior" | "lead" | "any" """
+    text = (job_title + " " + job_description[:300]).lower()
+    if any(w in text for w in ["principal", "staff", "vp ", "director", "head of", "architect"]):
+        return "lead"
+    if any(w in text for w in ["senior", "sr.", "sr ", "lead ", "8+ years", "7+ years", "6+ years"]):
+        return "senior"
+    if any(w in text for w in ["junior", "jr.", "jr ", "entry", "entry-level", "new grad",
+                                "graduate", "intern", "0-2 years", "1-2 years", "1+ year"]):
+        return "junior"
+    if any(w in text for w in ["mid ", "mid-level", "intermediate", "3-5 years", "2-4 years"]):
+        return "mid"
+    return "any"
+
+
+def detect_user_level(resume_text: str) -> str:
+    """Returns: "student" | "junior" | "mid" | "senior" """
+    text = resume_text.lower()
+    years_exp = _estimate_years(text)
+    if any(w in text for w in ["currently enrolled", "bachelor", "bsc", "b.sc", "honours",
+                                "expected graduation", "gpa", "university"]):
+        if years_exp < 2:
+            return "student"
+    if years_exp < 2:
+        return "junior"
+    if years_exp < 5:
+        return "mid"
+    return "senior"
+
+
+def _estimate_years(text: str) -> int:
+    import re
+    years = re.findall(r'20\d{2}', text)
+    return len(set(years)) // 2 if years else 0
+```
+
+These values are passed as context to Groq so it can grade more accurately.
+They do NOT gate any job from being graded.
+
+### Step 2 — Main analyze_fit function
+
+```python
+async def analyze_fit(
+    resume_text: str,
+    job_title: str,
+    job_description: str,
+    archetype: str = "Software Developer",
+    semantic_score: float = 0.0,
+) -> dict:
+    """
+    Grades every job — no filtering, no None returns.
+    Worst case is grade="F", never a silent drop.
+    """
+```
+
+Flow inside analyze_fit():
+1. extract_requirements(job_description) → jd_requirements
+2. detect_seniority(job_title, job_description) → job_seniority
+3. detect_user_level(resume_text) → user_level
+4. Make Groq call with jd_requirements (NOT full JD)
+5. Parse and return result dict — always, no matter what
+
+### Groq call — token-conscious:
+- Model: llama-3.3-70b-versatile
+- Max tokens: 220
+- Temperature: 0.3
+- System prompt (exact):
+  "You evaluate job fit for a software engineering candidate.
+   Grade honestly and calibrate to real hiring standards.
+   Reply ONLY in this exact format with no extra text:
+
+   GRADE: [A/B/C/D/F with optional +/-]
+   SUMMARY: [one honest sentence]
+   STRENGTHS: [strength 1] | [strength 2] | [strength 3]
+   GAPS: [gap 1] | [gap 2] | [gap 3]
+   TIP: [one sentence — what to highlight in cover letter for this specific role]
+
+   Use fewer pipe items if not applicable. Never add extra lines."
+
+- User message (exact template):
+  "Candidate level: {user_level}
+   Role: {job_title} ({archetype}, {job_seniority} level)
+   Semantic match score: {semantic_score:.0%}
+
+   === RESUME (first 400 chars) ===
+   {resume_text[:400]}
+
+   === JOB REQUIREMENTS ===
+   {jd_requirements}"
+
+  ← jd_requirements is the extracted section, already capped at 1500 chars.
+  ← Do NOT pass the full JD — extract_requirements() handles the selection.
+
+### Returns this dict (always — never None):
+```python
+{
+    "grade":      str,        # "A+" / "B" / "C-" / "D" / "F" etc.
+    "seniority":  str,        # detected job seniority label
+    "user_level": str,        # detected user level from resume
+    "summary":    str,        # 1 sentence honest fit assessment
+    "strengths":  list[str],  # max 3
+    "gaps":       list[str],  # max 3
+    "tip":        str,        # 1 sentence cover letter tip
+}
+```
+
+Safe defaults if Groq fails or response is malformed:
+  grade="?", summary="Could not evaluate", strengths=[], gaps=[], tip="Apply anyway"
+  seniority and user_level are always filled from pure-Python detection — never fail.
+
+### Response parsing:
+- Split by newlines, find each label prefix (GRADE:, SUMMARY:, etc.)
+- Split STRENGTHS/GAPS by " | "
+- If any field fails to parse: use safe defaults for that field only, never raise
+- Strip whitespace from all values
+
+### Rate limit protection — process ALL jobs in batches:
+Groq free tier: ~30 req/min on llama-3.3-70b.
+
+```python
+async def analyze_all_jobs(
+    jobs: list[dict],
+    resume_text: str,
+    batch_size: int = 25,
+    delay_between_batches: float = 62.0,
+) -> list[dict]:
+    """
+    Grades every job in the list. No jobs are filtered out.
+    Runs in batches to respect Groq free-tier rate limits.
+    Returns full list with fit_analysis set on every job.
+    """
+```
+
+Inside analyze_all_jobs():
+1. ALL jobs go into the eval queue — no filtering step
+2. Log: "Grading {N} jobs for fit..."
+3. Process in batches of 25 with asyncio.gather()
+4. Sleep 62s between batches (not after the last one)
+5. Log progress: "Batch {n}/{total} complete ({graded} jobs graded so far)"
+6. On 429 from Groq: retry once after 10s, then use safe defaults
+7. Return full list in original order with fit_analysis populated on every job
+
+### Show jobs immediately — before grading starts:
+
+This is critical UX. The match endpoint must return jobs to the frontend
+BEFORE grading completes. Grading runs in the background and updates
+each job as grades arrive.
+
+Implementation in jobs.py:
+
+```python
+# In the POST /api/jobs/{session_id}/match endpoint:
+
+# 1. Compute semantic scores (existing behaviour — keep as-is)
+# 2. Run archetype detection concurrently (Module 1 — keep as-is)
+# 3. IMMEDIATELY persist jobs to DB with fit_analysis=None on each job
+# 4. IMMEDIATELY return the response to the frontend
+#    — jobs appear with fit_analysis=None (frontend shows pending badge)
+# 5. Kick off grading as a background task (FastAPI BackgroundTasks)
+#    — grades write back to DB as they complete
+#    — frontend polls GET /api/jobs/{session_id} to pick up completed grades
+
+background_tasks.add_task(
+    _grade_jobs_background,
+    session_id=session_id,
+    jobs=matched_jobs,
+    resume_text=resume_text,
+)
+return matched_jobs_response   # fit_analysis=None on all jobs at this point
+```
+
+Write `_grade_jobs_background()` as a standalone async function in jobs.py:
+- Calls analyze_all_jobs() with the full job list
+- As each batch completes, updates job records in DB with fit_analysis dict
+- Logs completion: "Grading complete: {N} jobs graded for session {session_id}"
+- Never raises — all exceptions caught and logged
+
+Frontend contract — add to job response schema (backend/app/schemas/):
+```python
+fit_analysis: Optional[dict] = None
+# None = pending (grade not yet available)
+# dict = grade is ready, show it
+```
+
+Add to match response schema:
+```python
+evaluation_summary: dict = {}
+# Set immediately on return:
+# {"total": N, "graded": 0, "status": "grading_in_background"}
+# Frontend polls and updates this
+```
+
+### Update response schema:
+- fit_analysis: Optional[dict] = None on the job schema
+- evaluation_summary: dict = {} on the match response schema
+
+## TEST
+Add backend/test_fit_analyzer.py:
+- Test extract_requirements(): JD with "Requirements:" header → extracted section returned,
+  not the about-us paragraph. JD with no headers → first 1500 chars returned.
+  JD where requirements section is < 80 chars → fallback to first 1500 chars.
+- Test detect_seniority(): "Junior Developer"→"junior", "Senior Cloud Engineer"→"senior",
+  "Principal Architect"→"lead", "Software Developer"→"any"
+- Test detect_user_level(): fake resume with "BSc Honours Computer Science expected
+  graduation 2025, 1 year internship" → "student"
+- Test Groq response parser with hardcoded pipe-delimited string
+- Assert parsed dict has all 7 keys (grade, seniority, user_level, summary, strengths, gaps, tip)
+- Test analyze_fit() never returns None — even with a non-IT job title like
+  "Restaurant Cook" it must return a dict with a valid grade (likely "F")
+- Test analyze_all_jobs() with 10 fake jobs (mix of job types, mocked Groq):
+  assert ALL 10 jobs have fit_analysis dict set (no Nones)
+- Run: cd backend && python test_fit_analyzer.py
+- Fix any failures
+
+---
+
+# ============================================================
+# MODULE 3 — CANADIAN COMPANY PORTAL SCANNER
+# File scope: backend/app/services/portal_scanner.py (NEW)
+#             backend/app/api/routes/jobs.py (EDIT — add scan endpoint)
+#             backend/app/core/canadian_portals.py (NEW — company config)
+# ============================================================
+
+## CONTEXT
+Read these files before touching anything:
+- backend/app/scrapers/                     — understand existing scraper patterns
+- backend/app/api/routes/jobs.py            — understand session + storage pattern
+- backend/app/core/config.py               — understand env var pattern
+- backend/app/core/database.py             — understand how jobs are stored
+
+## TASK — Part A: Company config file
+
+Create backend/app/core/canadian_portals.py
+
+This is a pure data file — no logic, no imports except typing.
+Structure:
+
+```python
+from typing import TypedDict
+
+class PortalConfig(TypedDict):
+    name: str
+    city: str
+    province: str
+    ats: str          # "greenhouse" | "lever" | "ashby" | "workday" | "custom"
+    url: str          # direct careers page URL
+    greenhouse_id: str | None   # board token if ATS is greenhouse
+    lever_id: str | None        # company slug if ATS is lever
+    ashby_id: str | None        # company slug if ATS is ashby
+
+CANADIAN_PORTALS: list[PortalConfig] = [
+    # === GREENHOUSE (most reliable) ===
+    {"name": "Shopify", "city": "Ottawa", "province": "ON", "ats": "greenhouse",
+     "url": "https://www.shopify.com/careers", "greenhouse_id": "shopify", "lever_id": None, "ashby_id": None},
+    {"name": "Wealthsimple", "city": "Toronto", "province": "ON", "ats": "greenhouse",
+     "url": "https://jobs.lever.co/wealthsimple", "greenhouse_id": "wealthsimple", "lever_id": None, "ashby_id": None},
+    {"name": "Clio", "city": "Vancouver", "province": "BC", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/clio", "greenhouse_id": "clio", "lever_id": None, "ashby_id": None},
+    {"name": "Hootsuite", "city": "Vancouver", "province": "BC", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/hootsuite", "greenhouse_id": "hootsuite", "lever_id": None, "ashby_id": None},
+    {"name": "Lightspeed", "city": "Montreal", "province": "QC", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/lightspeedhq", "greenhouse_id": "lightspeedhq", "lever_id": None, "ashby_id": None},
+    {"name": "Nuvei", "city": "Montreal", "province": "QC", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/nuvei", "greenhouse_id": "nuvei", "lever_id": None, "ashby_id": None},
+    {"name": "PointClickCare", "city": "Mississauga", "province": "ON", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/pointclickcare", "greenhouse_id": "pointclickcare", "lever_id": None, "ashby_id": None},
+    {"name": "ApplyBoard", "city": "Kitchener", "province": "ON", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/applyboard", "greenhouse_id": "applyboard", "lever_id": None, "ashby_id": None},
+    {"name": "Clearco", "city": "Toronto", "province": "ON", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/clearco", "greenhouse_id": "clearco", "lever_id": None, "ashby_id": None},
+    {"name": "League", "city": "Toronto", "province": "ON", "ats": "greenhouse",
+     "url": "https://boards.greenhouse.io/league", "greenhouse_id": "league", "lever_id": None, "ashby_id": None},
+
+    # === LEVER ===
+    {"name": "1Password", "city": "Toronto", "province": "ON", "ats": "lever",
+     "url": "https://jobs.lever.co/1password", "greenhouse_id": None, "lever_id": "1password", "ashby_id": None},
+    {"name": "Ritual", "city": "Toronto", "province": "ON", "ats": "lever",
+     "url": "https://jobs.lever.co/ritual", "greenhouse_id": None, "lever_id": "ritual", "ashby_id": None},
+    {"name": "Konrad Group", "city": "Toronto", "province": "ON", "ats": "lever",
+     "url": "https://jobs.lever.co/konrad", "greenhouse_id": None, "lever_id": "konrad", "ashby_id": None},
+    {"name": "Financeit", "city": "Toronto", "province": "ON", "ats": "lever",
+     "url": "https://jobs.lever.co/financeit", "greenhouse_id": None, "lever_id": "financeit", "ashby_id": None},
+    {"name": "Benevity", "city": "Calgary", "province": "AB", "ats": "lever",
+     "url": "https://jobs.lever.co/benevity", "greenhouse_id": None, "lever_id": "benevity", "ashby_id": None},
+    {"name": "Axiom Zen", "city": "Vancouver", "province": "BC", "ats": "lever",
+     "url": "https://jobs.lever.co/axiomzen", "greenhouse_id": None, "lever_id": "axiomzen", "ashby_id": None},
+    {"name": "Tulip Retail", "city": "Toronto", "province": "ON", "ats": "lever",
+     "url": "https://jobs.lever.co/tulip", "greenhouse_id": None, "lever_id": "tulip", "ashby_id": None},
+    {"name": "Nudge", "city": "Toronto", "province": "ON", "ats": "lever",
+     "url": "https://jobs.lever.co/nudge", "greenhouse_id": None, "lever_id": "nudge", "ashby_id": None},
+
+    # === ASHBY ===
+    {"name": "Cohere", "city": "Toronto", "province": "ON", "ats": "ashby",
+     "url": "https://jobs.ashbyhq.com/cohere", "greenhouse_id": None, "lever_id": None, "ashby_id": "cohere"},
+    {"name": "Properly", "city": "Toronto", "province": "ON", "ats": "ashby",
+     "url": "https://jobs.ashbyhq.com/properly", "greenhouse_id": None, "lever_id": None, "ashby_id": "properly"},
+    {"name": "Ramp Network", "city": "Toronto", "province": "ON", "ats": "ashby",
+     "url": "https://jobs.ashbyhq.com/ramp", "greenhouse_id": None, "lever_id": None, "ashby_id": "ramp"},
+
+    # === GOVERNMENT / PUBLIC SECTOR ===
+    {"name": "Government of Canada (GC Jobs)", "city": "Ottawa", "province": "ON", "ats": "custom",
+     "url": "https://emploisfp-psjobs.cfp-psc.gc.ca/psrs-srfp/applicant/page1710?poster=1&noOfJobs=25",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Ontario Public Service", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://www.gojobs.gov.on.ca/Jobs.aspx",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "City of Toronto", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://jobs.toronto.ca/jobsatcity/search/",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+
+    # === MAJOR CANADIAN TECH / ENTERPRISE ===
+    {"name": "RBC (Royal Bank)", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://jobs.rbc.com/ca/en/search-results?keywords=software",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "TD Bank", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://jobs.td.com/en-CA/job-search-results/?keyword=developer",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Telus", "city": "Vancouver", "province": "BC", "ats": "custom",
+     "url": "https://www.telus.com/en/about/careers/job-opportunities",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Bell Canada", "city": "Montreal", "province": "QC", "ats": "custom",
+     "url": "https://jobs.bell.ca/ca/en/search-results",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "CGI Group", "city": "Montreal", "province": "QC", "ats": "custom",
+     "url": "https://www.cgi.com/canada/en-ca/careers",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "OpenText", "city": "Waterloo", "province": "ON", "ats": "custom",
+     "url": "https://careers.opentext.com/search/",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "BlackBerry", "city": "Waterloo", "province": "ON", "ats": "custom",
+     "url": "https://careers.blackberry.com/en/search-jobs",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Manulife", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://careers.manulife.com/global/en/search-results",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "CIBC", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://cibc.wd3.myworkdayjobs.com/en-US/CIBC_ExternalCareers",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Scotiabank", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://jobs.scotiabank.com/search/",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+
+    # === CLOUD / DEVOPS FOCUSED (Canada offices) ===
+    {"name": "AWS Canada", "city": "Vancouver", "province": "BC", "ats": "custom",
+     "url": "https://www.amazon.jobs/en/locations/vancouver-british-columbia",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Google Canada", "city": "Waterloo", "province": "ON", "ats": "custom",
+     "url": "https://careers.google.com/locations/waterloo/",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Microsoft Canada", "city": "Vancouver", "province": "BC", "ats": "custom",
+     "url": "https://careers.microsoft.com/us/en/search-results?locations=Canada",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "IBM Canada", "city": "Markham", "province": "ON", "ats": "custom",
+     "url": "https://www.ibm.com/employment/search/?country=CA",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+    {"name": "Limelight Networks / Edgio", "city": "Toronto", "province": "ON", "ats": "custom",
+     "url": "https://edg.io/company/careers/",
+     "greenhouse_id": None, "lever_id": None, "ashby_id": None},
+]
+```
+
+## TASK — Part B: Portal scanner service
+
+Create backend/app/services/portal_scanner.py
+
+### ATS-specific scrapers (use httpx, NOT Playwright where possible):
+
+**Greenhouse** (API-first — no Playwright needed):
+```
+GET https://boards-api.greenhouse.io/v1/boards/{greenhouse_id}/jobs?content=true
+```
+Returns JSON. Parse `jobs[]` array. Each job has: `title`, `absolute_url`, `location.name`, `content` (HTML description).
+Filter by keyword if provided. Return list of normalized job dicts.
+
+**Lever** (API-first — no Playwright needed):
+```
+GET https://api.lever.co/v0/postings/{lever_id}?mode=json
+```
+Returns JSON array. Each posting has: `text` (title), `hostedUrl`, `categories.location`, `descriptionPlain`.
+Filter by keyword if provided.
+
+**Ashby** (API-first — no Playwright needed):
+```
+POST https://api.ashbyhq.com/posting-api/job-board/{ashby_id}
+Body: {"jobBoardName": "{ashby_id}"}
+```
+Returns JSON with `jobPostings[]`. Each has: `title`, `jobUrl`, `teamName`, `locationName`, `descriptionHtml`.
+
+**Custom ATS (Playwright fallback):**
+- Use existing Playwright setup from the scrapers/ directory
+- Navigate to URL, wait for job listings to load
+- Extract: job title, apply URL, location text
+- Timeout: 15s per portal — skip and log if exceeded
+- Only use Playwright for custom ATS portals, never for Greenhouse/Lever/Ashby
+
+### Main function:
+```python
+async def scan_canadian_portals(
+    keywords: list[str],
+    provinces: list[str] | None = None,   # filter by province codes e.g. ["ON", "BC"]
+    ats_types: list[str] | None = None,    # filter to only scan certain ATS types
+    max_results_per_portal: int = 10
+) -> list[dict]
+```
+
+- Runs all Greenhouse + Lever + Ashby portals concurrently (httpx async)
+- Runs custom ATS portals sequentially with Playwright (too risky to parallelize)
+- Deduplicates results by URL
+- Normalizes all results to the same shape as jobs from the existing scrapers
+  (check the existing Job model fields and match them exactly)
+- Returns combined list sorted by portal name
+
+### New API endpoint in jobs.py:
+```
+POST /api/jobs/scan-canada
+Body: {
+  "keywords": ["cloud engineer", "devops"],
+  "provinces": ["ON", "BC"],   // optional
+  "session_id": "abc123"       // store results in existing session
+}
+```
+- Calls scan_canadian_portals()
+- Stores results in the same jobs table as regular search results
+- Returns { "found": N, "portals_scanned": N, "session_id": "..." }
+
+### Important constraints:
+- Greenhouse/Lever/Ashby calls: use httpx.AsyncClient with 10s timeout
+- Custom portals: skip gracefully if they fail — log the error, continue
+- Add a User-Agent header on all requests: "Mozilla/5.0 (compatible; JobHuntBot/1.0)"
+- Do NOT rate limit the API-based portals (Greenhouse/Lever/Ashby are meant to be called)
+- DO add 1s delay between custom ATS Playwright scrapes
+
+## TEST
+Add backend/test_portal_scanner.py:
+- Import CANADIAN_PORTALS and assert len >= 25
+- Assert every portal dict has all required keys
+- Assert all greenhouse portals have greenhouse_id set
+- Assert all lever portals have lever_id set
+- Assert all ashby portals have ashby_id set
+- Mock httpx.AsyncClient — return a hardcoded Greenhouse API JSON response
+- Call scan_canadian_portals(keywords=["developer"], ats_types=["greenhouse"])
+- Assert results list is non-empty and each result has title and url fields
+- Run: cd backend && python test_portal_scanner.py
+- Fix any failures
+
+---
+
+# ============================================================
+# FINAL STEPS — Run after all three modules are implemented
+# ============================================================
+
+1. Syntax check all new/modified files:
+   cd backend && python -m py_compile \
+     app/services/archetype_detector.py \
+     app/services/fit_analyzer.py \
+     app/services/portal_scanner.py \
+     app/core/canadian_portals.py \
+     app/api/routes/jobs.py
+
+2. Run all three test files:
+   cd backend && python test_archetype.py
+   cd backend && python test_fit_analyzer.py
+   cd backend && python test_portal_scanner.py
+
+3. Verify untouched files — confirm these were NOT modified:
+   - backend/app/services/ats_optimizer.py
+   - backend/app/services/github_ingestion.py
+   - backend/app/services/groq_chat.py
+   - backend/app/api/routes/generate.py
+   - backend/app/api/routes/interview.py
+   - frontend/ (anything)
+
+4. Check requirements.txt — confirm no new packages were added.
+   All three modules must use only existing dependencies.
+   (httpx, playwright, groq — all already present)
+
+5. Print a summary of what was created/modified:
+   - List each new file and its line count
+   - List each modified file and what was changed
+   - List any assumptions made about existing code structure
+
+---
+# END OF PROMPT
+# Modules are independent. To run only one module, copy that section only.
+# Module 1 (Archetype) should be implemented before Module 2 (Fit Analysis)
+# since fit_analyzer.py optionally imports archetype data.
+# Module 3 (Portal Scanner) is fully independent.

@@ -125,3 +125,7 @@ class BrainstormReply(BaseModel):
 
 class SessionResumeUpdate(BaseModel):
     resume_text: str
+
+
+class SessionRename(BaseModel):
+    job_title: str

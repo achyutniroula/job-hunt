@@ -10,12 +10,28 @@ import DistanceSlider from "@/components/DistanceSlider";
 import { startScrape } from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 
-const ALL_BOARDS = ["linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank"];
+const BOARD_GROUPS = [
+  {
+    label: "Job Boards",
+    boards: ["linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank"],
+  },
+  {
+    label: "Canadian Portals",
+    description: "Direct ATS (Greenhouse · Lever · Ashby)",
+    boards: ["canada-portals"],
+  },
+];
+
+const ALL_BOARDS = [
+  "linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "eluta", "jobbank",
+  "canada-portals",
+];
 
 const BOARD_LABELS: Record<string, string> = {
   linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor",
   ziprecruiter: "ZipRecruiter", google: "Google Jobs",
   eluta: "Eluta.ca", jobbank: "JobBank.gc.ca",
+  "canada-portals": "Canadian Portals",
 };
 
 const FADE_UP = {
@@ -77,15 +93,15 @@ export default function Landing() {
           >
             <motion.div variants={FADE_UP}>
               <span className="badge mb-5 inline-flex">
-                7 Canadian job boards · AI-powered matching
+                7 job boards + Canadian portals · AI-powered matching
               </span>
               <h1 className="font-manrope font-light text-5xl sm:text-6xl text-text-primary leading-tight mt-4 tracking-tight section-glow">
                 Find jobs that<br />
                 <span className="rgb-text-gradient font-normal">actually fit.</span>
               </h1>
               <p className="text-text-secondary text-xl mt-6 leading-relaxed font-light max-w-lg">
-                Scrape LinkedIn, Indeed, Glassdoor and more — all at once.
-                Upload your resume and get AI match scores for every result.
+                Scrape LinkedIn, Indeed, Glassdoor and more — plus Canadian company portals on Greenhouse, Lever, and Ashby — all at once.
+                Upload your resume and get AI match scores and grades for every result.
               </p>
             </motion.div>
 
@@ -159,27 +175,37 @@ export default function Landing() {
                 >
                   <span className="text-sm text-text-secondary">
                     {selectedBoards.length === ALL_BOARDS.length
-                      ? "All 7 boards"
-                      : `${selectedBoards.length} board${selectedBoards.length !== 1 ? "s" : ""} selected`}
+                      ? "All sources (7 boards + Canadian portals)"
+                      : `${selectedBoards.length} source${selectedBoards.length !== 1 ? "s" : ""} selected`}
                   </span>
                   <ChevronDown className={`w-4 h-4 text-text-muted transition-transform ${showBoards ? "rotate-180" : ""}`} />
                 </button>
                 {showBoards && (
-                  <div className="absolute z-20 mt-1 w-full rounded-xl p-3 flex flex-wrap gap-2"
+                  <div className="absolute z-20 mt-1 w-full rounded-xl p-3 space-y-3"
                     style={{ background: "#16181c", border: "1px solid rgba(68,71,72,0.5)" }}>
-                    {ALL_BOARDS.map(b => (
-                      <button
-                        key={b}
-                        onClick={() => toggleBoard(b)}
-                        className="badge cursor-pointer transition-all"
-                        style={selectedBoards.includes(b) ? {
-                          background: "rgba(110,231,183,0.1)",
-                          color: "#6ee7b7",
-                          border: "1px solid rgba(110,231,183,0.3)",
-                        } : {}}
-                      >
-                        {BOARD_LABELS[b]}
-                      </button>
+                    {BOARD_GROUPS.map(group => (
+                      <div key={group.label}>
+                        <p className="text-[9px] font-manrope uppercase tracking-widest text-text-dim mb-1.5">
+                          {group.label}
+                          {group.description && <span className="ml-1 normal-case tracking-normal opacity-60">{group.description}</span>}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.boards.map(b => (
+                            <button
+                              key={b}
+                              onClick={() => toggleBoard(b)}
+                              className="badge cursor-pointer transition-all"
+                              style={selectedBoards.includes(b) ? {
+                                background: "rgba(110,231,183,0.1)",
+                                color: "#6ee7b7",
+                                border: "1px solid rgba(110,231,183,0.3)",
+                              } : {}}
+                            >
+                              {BOARD_LABELS[b]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -193,7 +219,7 @@ export default function Landing() {
                 {loading ? (
                   <><Spinner size="sm" />Starting search…</>
                 ) : (
-                  <><Search className="w-4 h-4" />Search {selectedBoards.length} boards</>
+                  <><Search className="w-4 h-4" />Search {selectedBoards.length === ALL_BOARDS.length ? "all sources" : `${selectedBoards.length} source${selectedBoards.length !== 1 ? "s" : ""}`}</>
                 )}
               </button>
             </motion.div>

@@ -24,8 +24,8 @@ from app.schemas.resume import (
     CoverLetterRequest,
     CoverLetterResponse,
 )
-from app.services.ats_optimizer import optimize_resume, optimize_with_profile
-from app.services.github_ingestion import fetch_github_profile
+from app.services.ats_optimizer import optimize_resume, optimize_with_digest, optimize_with_profile
+from app.services.github_ingestion import fetch_github_digest, fetch_github_profile
 from app.services.linkedin_ingestion import fetch_linkedin_profile
 from app.services.skill_inference import infer_skill_profile
 from app.services.cover_letter import generate_cover_letter
@@ -88,32 +88,24 @@ async def ats_optimize(body: ATSOptimizeRequest):
 
     try:
         if body.github_urls and pass_num == 1:
-            # Concurrent ingestion
-            github_tasks = [fetch_github_profile(u) for u in body.github_urls[:3]]
+            # Fetch rich digest for the primary GitHub URL (capped at 120s), LinkedIn in parallel
+            github_url = body.github_urls[0]
             linkedin_task = (
                 fetch_linkedin_profile(body.linkedin_url)
                 if body.linkedin_url else None
             )
             gathered = await asyncio.gather(
-                *github_tasks,
+                asyncio.wait_for(fetch_github_digest(github_url), timeout=120),
                 *([] if linkedin_task is None else [linkedin_task]),
                 return_exceptions=True,
             )
-            github_profiles = [g for g in gathered[:len(github_tasks)]
-                               if not isinstance(g, Exception) and g is not None]
-            github_profile = github_profiles[0] if github_profiles else None
-            linkedin_profile = (
-                gathered[len(github_tasks)]
-                if linkedin_task and not isinstance(gathered[len(github_tasks)], Exception)
-                else None
-            )
-            skill_profile = infer_skill_profile(github_profile, linkedin_profile)
-            result = await optimize_with_profile(
+            github_digest = gathered[0] if not isinstance(gathered[0], Exception) else None
+            if isinstance(gathered[0], Exception):
+                logger.warning("GitHub digest fetch failed/timed out: %s", gathered[0])
+            result = await optimize_with_digest(
                 resume_text=resume_text,
                 job_description=job_desc,
-                skill_profile=skill_profile,
-                github_profile=github_profile,
-                linkedin_profile=linkedin_profile,
+                github_digest=github_digest if (github_digest and github_digest.repos) else None,
             )
         else:
             result = await optimize_resume(

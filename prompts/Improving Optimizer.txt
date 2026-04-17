@@ -1,0 +1,129 @@
+You are implementing two enhanced services in the `job-hunt` FastAPI project. Read existing code before writing anything. Make changes surgically — only touch what needs changing.
+
+## CONTEXT
+Project root: job-hunt/
+- Backend: FastAPI, Python 3.11, SQLAlchemy async, SQLite
+- AI: Anthropic Claude (claude-sonnet-4-6) for document tasks, Groq (llama-3.3-70b) for chat
+- Existing services: backend/app/services/github_ingestion.py, backend/app/services/ats_optimizer.py
+- Existing route: backend/app/api/routes/generate.py (POST /api/generate/optimize)
+
+## TASK 1 — Overhaul github_ingestion.py
+
+Read the current file first. Then rewrite it to do the following:
+
+**Input:** A dynamic GitHub profile URL (e.g. https://github.com/someuser) — NOT hardcoded.
+
+**For every non-fork repo, fetch:**
+1. Repo metadata: name, description, primary language, topics/tags, stars
+2. Language breakdown (GitHub languages API)
+3. README.md (truncated to 800 chars if long)
+4. Dependency files — check for and fetch if they exist:
+   - requirements.txt, Pipfile, pyproject.toml
+   - package.json (scripts + dependencies sections only, not devDependencies)
+   - go.mod, Cargo.toml, pom.xml, build.gradle
+5. CI/CD configs — .github/workflows/ directory, fetch each .yml file
+6. Key source files — heuristically pick up to 3 files per repo:
+   - Prefer: main.py, app.py, index.ts, index.js, server.py, server.ts, Dockerfile
+   - Skip: lock files, minified files, test files, files > 8KB
+7. Truncate all source file content to 600 chars — enough for context, not overwhelming
+
+**Output:** A `GitHubDigest` dataclass with a `.to_context_string()` method that renders everything into a clean structured string Claude can reason over. Format it so repos are clearly separated and each piece of evidence is labelled (e.g. "CI/CD: uses GitHub Actions with Docker build + ECR push").
+
+**Rate limiting:** Use httpx async with a GITHUB_TOKEN from env (fall back to unauthenticated). Add 0.1s delay between repo fetches. Handle 404s and 403s gracefully — skip the file, don't crash.
+
+**Cap:** Max 15 repos, max 3 source files per repo. Prioritize repos with most stars, then most recent.
+
+---
+
+## TASK 2 — Overhaul ats_optimizer.py
+
+Read the current file first. Then rewrite it with a 3-step pipeline:
+
+**Inputs:**
+- resume_text: str
+- job_description: str  
+- github_digest: Optional[GitHubDigest] = None  (None if user didn't provide GitHub URL)
+
+**Step 1 — JD Analysis (1 Claude call):**
+Extract from the job description:
+- Exact role title used
+- Required skills (must-haves)
+- Preferred skills (nice-to-haves)  
+- Key responsibilities (as action phrases)
+- Seniority signals (years of experience, senior/junior/mid)
+- Industry keywords that should appear in resume
+
+Prompt must be tight. Ask Claude to return this as plain labeled sections, not JSON.
+
+**Step 2 — GitHub Evidence Mapping (no API call — done in Python):**
+If github_digest is provided, scan the `.to_context_string()` output and cross-reference against the extracted JD skills. Build a simple evidence map:
+- "JD requires Docker → found in repo X's CI/CD config and Dockerfile"
+- "JD requires Redis → found in repo Y's requirements.txt"
+This mapping gets injected into Step 3's prompt as grounded evidence.
+
+**Step 3 — Aggressive Resume Rewrite (1 Claude call):**
+This is the main rewrite. The prompt must instruct Claude to:
+
+1. **Role title:** Change the applicant's current role title(s) to best match the JD's exact title — only if the actual work done supports it. Use GitHub evidence as proof.
+
+2. **Bullet points:** Rewrite every bullet point to:
+   - Lead with strong action verbs the JD uses
+   - Include exact keywords/skills from the JD where truthfully applicable
+   - Reference real project names, tech, and architectural decisions from GitHub repos where relevant
+   - Quantify where possible (if numbers exist in original, keep them; don't fabricate)
+
+3. **Skills section:** Add every skill from the JD that appears anywhere in the GitHub digest or original resume. Remove or demote skills not relevant to this role.
+
+4. **Projects section (if present):** Rename/redescribe projects using JD terminology where the GitHub evidence supports it.
+
+5. **What NOT to do:** Never add skills, tools, or experiences that have zero evidence in either the original resume or GitHub repos. No fabrication — ever.
+
+The prompt must explicitly say: "You have access to the candidate's actual GitHub repositories. Use this as your source of truth. Every change you make must be grounded in either the original resume content or the GitHub evidence provided. Do not invent anything."
+
+**Output:** Plain text — the full rewritten resume, ready to copy-paste. Followed by a brief "Changes Made" section listing what was changed and why (resume-grounded vs github-grounded).
+
+---
+
+## TASK 3 — Wire it into the existing route
+
+Read backend/app/api/routes/generate.py. The existing POST /api/generate/optimize endpoint likely accepts resume_text and job_description. 
+
+Update the request schema to also accept an optional `github_url: Optional[str] = None`.
+
+In the route handler:
+1. If github_url is provided, call the enhanced github_ingestion to build a GitHubDigest
+2. Pass the digest into the new ats_optimizer
+3. If github_url is None, run optimizer without GitHub context (it should still work well)
+
+---
+
+## TASK 4 — Debug & Test
+
+After implementing, do the following:
+
+1. Run `cd backend && python -m py_compile app/services/github_ingestion.py app/services/ats_optimizer.py app/api/routes/generate.py` — fix any syntax errors.
+
+2. Write a test script `backend/test_ats_pipeline.py`:
+   - Uses a hardcoded sample resume (3-4 bullet points, skills section)
+   - Uses a hardcoded sample JD (10-15 lines, realistic Cloud/DevOps role)
+   - Uses https://github.com/achyutniroula as the test GitHub URL
+   - Calls github_ingestion → prints digest summary (repo count, total files fetched)
+   - Calls ats_optimizer with all three inputs → prints the rewritten resume
+   - Does NOT make real Anthropic API calls in the test — mock the Claude responses with a simple placeholder string so we validate the pipeline plumbing without burning tokens
+
+3. Run `cd backend && python test_ats_pipeline.py` and fix anything that fails.
+
+4. Check that the existing /api/generate/cover-letter and other routes in generate.py are untouched and still work (just read them, don't run them).
+
+---
+
+## CONSTRAINTS
+- Do not touch any other files outside of:
+  - backend/app/services/github_ingestion.py
+  - backend/app/services/ats_optimizer.py
+  - backend/app/api/routes/generate.py
+  - backend/test_ats_pipeline.py (new file)
+- Preserve all existing function signatures that other parts of the codebase call
+- If the existing github_ingestion.py already has a function used by interview.py, keep that function and add the new ATS-specific one alongside it
+- Use httpx.AsyncClient (already a project dependency) for GitHub API calls
+- Keep imports clean — no new dependencies beyond what's in requirements.txt

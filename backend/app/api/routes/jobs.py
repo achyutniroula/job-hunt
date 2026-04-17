@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -136,8 +137,20 @@ async def list_jobs(
     if remote_only:
         stmt = stmt.where(Job.is_remote == True)  # noqa: E712
     if boards:
+        from sqlalchemy import or_
         board_list = [b.strip() for b in boards.split(",")]
-        stmt = stmt.where(Job.board.in_(board_list))
+        # Exact match for standard boards; prefix match for ATS boards (e.g. "greenhouse" matches "greenhouse:Shopify")
+        ats_types = {"greenhouse", "lever", "ashby", "custom"}
+        exact = [b for b in board_list if b not in ats_types]
+        prefix = [b for b in board_list if b in ats_types]
+        conditions = []
+        if exact:
+            conditions.append(Job.board.in_(exact))
+        for p in prefix:
+            conditions.append(Job.board.like(f"{p}:%"))
+            conditions.append(Job.board == p)
+        if conditions:
+            stmt = stmt.where(or_(*conditions))
     if seniority:
         seniority_list = [s.strip() for s in seniority.split(",")]
         stmt = stmt.where(Job.seniority_level.in_(seniority_list))
@@ -157,10 +170,12 @@ async def list_jobs(
 async def match_jobs_to_resume(
     session_id: str,
     resume_filename: str = Query(..., description="Filename from /api/resume/upload"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
 ):
     """Score all jobs in a session against a previously uploaded resume."""
     import os
+    from app.services.archetype_detector import detect_archetype
 
     resume_path = os.path.join(settings.upload_dir, resume_filename)
     if not os.path.exists(resume_path):
@@ -181,11 +196,19 @@ async def match_jobs_to_resume(
     # Score + sort
     scored_jobs = await score_jobs_for_resume(parsed, jobs)
 
-    # Persist scores
-    for job in scored_jobs:
+    # Run archetype detection concurrently for all jobs
+    archetypes = await asyncio.gather(
+        *[detect_archetype(j.title, j.description or "") for j in scored_jobs],
+        return_exceptions=True,
+    )
+
+    # Persist scores + archetypes, clear any stale fit_analysis
+    for job, arch in zip(scored_jobs, archetypes):
         db_job = await db.get(Job, job.id)
         if db_job:
             db_job.match_score = job.match_score
+            db_job.archetype = arch if isinstance(arch, str) else "Other"
+            db_job.fit_analysis = None  # will be filled by background grading
 
     # Update session resume reference
     session = await db.get(ScrapeSession, session_id)
@@ -193,7 +216,49 @@ async def match_jobs_to_resume(
         session.resume_filename = resume_filename
     await db.commit()
 
+    # Refresh archetypes on in-memory objects for response
+    for job, arch in zip(scored_jobs, archetypes):
+        job.archetype = arch if isinstance(arch, str) else "Other"
+        job.fit_analysis = None
+
+    # Kick off background grading — jobs appear immediately, grades stream in
+    background_tasks.add_task(
+        _grade_jobs_background,
+        session_id=session_id,
+        jobs=[{
+            "id": j.id,
+            "title": j.title,
+            "description": j.description or "",
+            "archetype": j.archetype,
+            "match_score": j.match_score,
+        } for j in scored_jobs],
+        resume_text=parsed.raw_text,
+    )
+
     return [_job_to_schema(j) for j in scored_jobs]
+
+
+async def _grade_jobs_background(
+    session_id: str,
+    jobs: list[dict],
+    resume_text: str,
+) -> None:
+    """Background task: grade all jobs for fit and write results to DB."""
+    from app.core.database import AsyncSessionLocal
+    from app.services.fit_analyzer import analyze_all_jobs
+
+    try:
+        graded = await analyze_all_jobs(jobs, resume_text)
+        async with AsyncSessionLocal() as db:
+            for job in graded:
+                db_job = await db.get(Job, job["id"])
+                if db_job and job.get("fit_analysis"):
+                    import json as _json
+                    db_job.fit_analysis = _json.dumps(job["fit_analysis"])
+            await db.commit()
+        logger.info("Grading complete: %d jobs graded for session %s", len(graded), session_id)
+    except Exception as exc:
+        logger.error("Background grading failed for session %s: %s", session_id, exc)
 
 
 @router.get("/detail/{job_id}", response_model=JobRead)
@@ -204,6 +269,66 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
     return _job_to_schema(job)
 
 
+class ScanCanadaRequest(BaseModel):
+    keywords: list[str]
+    provinces: list[str] | None = None
+    session_id: str | None = None
+
+
+@router.post("/scan-canada")
+async def scan_canada(
+    body: ScanCanadaRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Scan Canadian company portals (Greenhouse/Lever/Ashby + custom) for jobs."""
+    from app.services.portal_scanner import scan_canadian_portals
+
+    jobs_found = await scan_canadian_portals(
+        keywords=body.keywords,
+        provinces=body.provinces,
+    )
+
+    session_id = body.session_id or str(uuid.uuid4())
+
+    # Ensure session exists
+    session = await db.get(ScrapeSession, session_id)
+    if not session:
+        session = ScrapeSession(
+            id=session_id,
+            keywords=", ".join(body.keywords),
+            location="Canada",
+            remote_only=False,
+            status="done",
+        )
+        db.add(session)
+
+    stored = 0
+    for j in jobs_found:
+        job = Job(
+            id=str(uuid.uuid4()),
+            session_id=session_id,
+            title=j["title"],
+            company=j.get("company"),
+            location=j.get("location"),
+            description=j.get("description"),
+            board=j.get("board", "portal"),
+            job_url=j.get("job_url"),
+            is_remote=j.get("is_remote", False),
+            match_score=None,
+            archetype="",
+            fit_analysis=None,
+        )
+        db.add(job)
+        stored += 1
+
+    session.job_count = stored
+    session.status = "done"
+    await db.commit()
+
+    portals_hit = len({j.get("board", "") for j in jobs_found})
+    return {"found": stored, "portals_scanned": portals_hit, "session_id": session_id}
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _job_to_schema(job: Job) -> JobRead:
@@ -212,6 +337,14 @@ def _job_to_schema(job: Job) -> JobRead:
         skills = json.loads(skills_raw)
     except Exception:
         skills = []
+
+    fit = None
+    if job.fit_analysis:
+        try:
+            fit = json.loads(job.fit_analysis)
+        except Exception:
+            pass
+
     return JobRead(
         id=job.id,
         session_id=job.session_id,
@@ -231,6 +364,8 @@ def _job_to_schema(job: Job) -> JobRead:
         job_url=job.job_url,
         posted_at=job.posted_at,
         match_score=job.match_score,
+        archetype=job.archetype or "",
+        fit_analysis=fit,
         created_at=job.created_at,
     )
 

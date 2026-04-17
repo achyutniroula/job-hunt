@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 
@@ -28,6 +28,8 @@ class JobRead(JobBase):
     id: str
     session_id: str
     match_score: float | None = None
+    archetype: str = ""
+    fit_analysis: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

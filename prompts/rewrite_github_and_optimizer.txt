@@ -1,0 +1,591 @@
+================================================================================
+TASK: Rewrite github_ingestion.py and ats_optimizer.py
+================================================================================
+
+You are rewriting two files in an existing FastAPI/Python project. The goal is a
+single clean architecture:
+
+  Input: resume_text + job_description + GitHub URL
+    │
+    ▼
+  github_ingestion.py  ← fetch EVERYTHING from every public repo, no caps, no filters
+    │
+    ▼
+  ats_optimizer.py     ← one Claude API call sees it all, reasons and rewrites
+    │
+    ▼
+  ATSOptimizeResponse  ← exact existing schema, unchanged
+
+Read every constraint below before writing a single line of code.
+
+================================================================================
+PART 1 — WHAT ALREADY EXISTS (DO NOT CHANGE THESE)
+================================================================================
+
+--- Existing imports used by ats_optimizer.py ---
+
+  from app.core.config import get_settings
+  from app.schemas.resume import ATSOptimizeResponse, ChangeItem
+  from app.services.github_ingestion import GitHubDigest, GitHubProfile
+  from app.services.linkedin_ingestion import LinkedInProfile
+  from app.services.skill_inference import UserSkillProfile
+
+--- ATSOptimizeResponse schema (Pydantic — DO NOT ALTER) ---
+
+  class ATSOptimizeResponse(BaseModel):
+      original_text:       str
+      optimized_text:      str
+      latex_text:          str | None
+      changes_summary:     list[str]
+      change_items:        list[ChangeItem]
+      ats_score_before:    int
+      ats_score_after:     int
+      matched_keywords:    list[str]
+      missing_keywords:    list[str]
+      improvements:        list[str]
+      transparency_report: str        = ""
+      interview_prep:      str        = ""
+      gap_analysis:        str        = ""
+      linkedin_unavailable:bool       = False
+      role_reframes:       list[dict] = []
+
+--- ChangeItem schema ---
+
+  class ChangeItem(BaseModel):
+      category: str   # "verb"|"keyword"|"title"|"skill"|"metric"|"reframe"|"removed"|"restructure"
+      text:     str
+
+--- Functions in ats_optimizer.py that MUST be preserved exactly (do not touch) ---
+
+  optimize_resume()              — basic no-GitHub path, keep as-is
+  optimize_with_profile()        — uses UserSkillProfile + GitHubProfile, keep as-is
+  optimize_for_session()         — uses pre-fetched JSON context, keep as-is
+  optimize_with_session_context()— keep as-is
+  _generate_latex()              — keep as-is
+  _LATEX_SYSTEM, _LATEX_USER     — keep as-is
+  _SYSTEM_PROMPT                 — keep as-is (used by optimize_resume)
+  _USER_TEMPLATE                 — keep as-is
+  _REOPTIMIZE_USER_TEMPLATE      — keep as-is
+  _PROFILE_SYSTEM, _PROFILE_USER — keep as-is
+  _SESSION_OPT_USER              — keep as-is
+  _extract_tag()                 — keep as-is
+  _parse_changes()               — keep as-is
+  _parse_role_reframes()         — keep as-is
+  _CATEGORY_MAP, _CHANGE_RE      — keep as-is
+  _build_rich_github_summary()   — keep as-is
+
+--- The ONE function you are replacing in ats_optimizer.py ---
+
+  optimize_with_digest(resume_text, job_description, github_digest) -> ATSOptimizeResponse
+
+--- Classes in github_ingestion.py that MUST be preserved (callers depend on them) ---
+
+  RepoSummary    — used by GitHubProfile, fetch_github_profile()
+  GitHubProfile  — used by optimize_with_profile()
+  fetch_github_profile()  — keep working, no signature change
+
+  GitHubDigest   — used by optimize_with_digest()
+  fetch_github_digest()   — REPLACE with the new full-depth version below
+
+  RepoDigest is internal to GitHubDigest — replace its dataclass fields as needed
+  GitHubDigest.to_context_string() — REPLACE with new version
+  GitHubDigest.repo_count()        — ADD this new method: return len(self.repos)
+
+================================================================================
+PART 2 — REWRITE github_ingestion.py
+================================================================================
+
+Goal: fetch every piece of meaningful information from every public non-fork repo
+of a GitHub user. No arbitrary repo cap. No file count caps that drop real content.
+Smart per-repo token budgeting so the total stays within Claude's context window.
+
+--- Keep from original (no changes needed) ---
+
+  _headers()
+  _extract_username()
+  RepoSummary, GitHubProfile, fetch_github_profile()
+  _fetch_file_content()          — keep exactly, it works fine
+  _fetch_repo_detail()           — keep exactly
+  _pick_key_files()              — keep exactly
+  _KEY_FILE_NAMES                — keep exactly
+  All imports
+
+--- Replace: RepoDigest dataclass ---
+
+  @dataclass
+  class RepoDigest:
+      name:             str
+      description:      str | None
+      primary_language: str | None
+      languages:        dict[str, int]   # lang -> bytes
+      topics:           list[str]
+      stars:            int
+      forks:            int
+      updated_at:       str
+      is_pinned:        bool             # NEW
+      readme:           str | None       # full README, no truncation here
+      file_tree:        list[str]        # ALL blob paths, no cap
+      deps:             dict[str, str]   # filename -> full content
+      cicd:             dict[str, str]   # filename -> full content
+      source_files:     dict[str, str]   # path -> content
+
+--- Replace: GitHubDigest dataclass ---
+
+  @dataclass
+  class GitHubDigest:
+      username:       str
+      repos:          list[RepoDigest]
+      top_languages:  dict[str, int]
+      pinned_repos:   list[str]          # NEW: repo names that are pinned
+      total_repos:    int                # NEW: total public repos before filtering
+
+      def repo_count(self) -> int:
+          return len(self.repos)
+
+      def to_context_string(self) -> str:
+          # See spec below
+
+--- fetch_github_digest() replacement ---
+
+Signature: async def fetch_github_digest(url_or_username: str) -> GitHubDigest | None
+
+Steps:
+1. Extract username from url_or_username using existing _extract_username()
+2. Fetch pinned repos via GraphQL:
+     POST https://api.github.com/graphql
+     query: { user(login: $username) {
+               pinnedItems(first: 6, types: REPOSITORY) {
+                 nodes { ... on Repository { name } }
+               }
+             }}
+     Use Bearer token from _headers() if available.
+     On any failure (no token, GraphQL error, network error): set pinned_names = []
+     Never let this block the rest of the fetch.
+3. Fetch all repos:
+     GET /users/{username}/repos?per_page=100&sort=updated
+     Follow Link header pagination to get ALL pages — do not stop at 100.
+     Filter: keep only repos where fork == False AND visibility == "public"
+             (or where private == False if visibility key absent)
+     total_repos = count of all repos returned before fork filter
+4. For each non-fork public repo call _fetch_repo_digest_full() (defined below)
+     Use asyncio.gather() across all repos concurrently.
+     On exception for a single repo: log warning, skip that repo, continue.
+5. Build top_languages across all repos (same logic as existing code)
+6. Return GitHubDigest(username, repos, top_languages, pinned_repos=pinned_names,
+                       total_repos=total_repos)
+
+--- _fetch_repo_digest_full() ---
+
+Signature:
+  async def _fetch_repo_digest_full(
+      client: httpx.AsyncClient,
+      username: str,
+      repo: dict,
+  ) -> RepoDigest
+
+Steps:
+1. In parallel (asyncio.gather, return_exceptions=True):
+     a. GET /repos/{username}/{name}/languages
+     b. GET /repos/{username}/{name}/readme
+     c. GET /repos/{username}/{name}/git/trees/{default_branch}?recursive=1
+
+2. README: decode from base64, keep FULL text — do not truncate here.
+   If 404 or error: readme = None
+
+3. File tree: collect ALL blob paths from tree response.
+   No cap on file_tree list.
+
+4. From the full file tree, identify files to fetch in these categories.
+   Fetch them all concurrently (asyncio.gather):
+
+   DEPENDENCY FILES — any path whose basename matches (case-insensitive):
+     requirements.txt, requirements-dev.txt, requirements-test.txt,
+     pyproject.toml, setup.py, setup.cfg, Pipfile,
+     package.json, package-lock.json (scripts+deps only),
+     yarn.lock (first 50 lines only — it's huge),
+     Cargo.toml, go.mod, go.sum (first 30 lines),
+     pom.xml, build.gradle, build.gradle.kts,
+     composer.json, Gemfile, mix.exs
+   Depth limit: path.count("/") <= 2 (root, one level, two levels)
+   Fetch full content for each. For package-lock.json: skip content, just
+   record its presence as "package-lock.json: present (not fetched)".
+   For yarn.lock: fetch and keep first 50 lines only.
+   For go.sum: fetch and keep first 30 lines only.
+
+   CI/CD FILES — any path matching:
+     .github/workflows/*.yml
+     .github/workflows/*.yaml
+     Jenkinsfile, .travis.yml, .circleci/config.yml,
+     .gitlab-ci.yml, azure-pipelines.yml, bitbucket-pipelines.yml,
+     Makefile (root level only)
+   Fetch full content for each. Cap each at 1500 chars.
+
+   SOURCE FILES — the most informative non-boilerplate code files.
+   Selection logic (in priority order):
+     Step A: exact name matches (root or one level deep):
+       main.py, app.py, server.py, manage.py, cli.py, run.py,
+       index.ts, index.js, main.ts, app.ts, main.go, main.rs,
+       lib.rs, mod.rs
+     Step B: files in directories named:
+       src/, app/, lib/, core/, api/, services/, routes/, handlers/,
+       controllers/, models/, schema/, schemas/
+       that end in .py, .ts, .js, .go, .rs, .java, .kt, .swift, .rb
+     Step C: any remaining .py, .ts, .js, .go, .rs, .java, .kt file
+       not in test/, tests/, __pycache__/, node_modules/, dist/,
+       build/, .git/, vendor/, migrations/, alembic/
+   
+   Selection cap: take up to 15 source files total per repo, preferring
+   Step A first, then Step B, then Step C.
+   Content per file: keep full content up to 2000 chars each.
+   Skip files whose content is only whitespace or minified (single line > 500 chars).
+
+5. Return RepoDigest with all fetched data. No truncation inside this function —
+   truncation happens only in to_context_string() via per-repo budgets.
+
+--- GitHubDigest.to_context_string() replacement ---
+
+This method serializes everything for Claude. Use a per-repo token budget to ensure
+the total string fits in Claude's extended context without cutting off mid-repo.
+
+Token budget logic:
+  TOTAL_CHAR_BUDGET = 180_000   # ~45k tokens, safe for Claude's 200k context window
+                                 # leaving room for resume + JD + system prompt
+  repos_count = len(self.repos)
+  if repos_count == 0: return "No GitHub data."
+
+  # Give pinned repos 2x budget weight
+  # Allocate proportionally, minimum 1000 chars per repo
+  pinned = set(self.pinned_repos)
+  base_budget = TOTAL_CHAR_BUDGET // repos_count
+  budgets = {}
+  for r in self.repos:
+      budgets[r.name] = min(base_budget * 2, 12000) if r.name in pinned \
+                        else min(base_budget, 8000)
+  # Scale down if total exceeds budget
+  total_allocated = sum(budgets.values())
+  if total_allocated > TOTAL_CHAR_BUDGET:
+      scale = TOTAL_CHAR_BUDGET / total_allocated
+      budgets = {k: max(1000, int(v * scale)) for k, v in budgets.items()}
+
+Serialization format per repo (write a helper _serialize_repo(r, budget) -> str):
+
+  --- REPO: {r.name} {"[PINNED]" if pinned else ""} ---
+  Stars: {r.stars} | Forks: {r.forks} | Language: {r.primary_language} | Updated: {r.updated_at}
+  Description: {r.description or "none"}
+  Topics: {", ".join(r.topics) or "none"}
+  Languages: {lang_pct_string}   ← "Python 72%, TypeScript 18%, Shell 10%"
+  
+  FILE TREE ({len(r.file_tree)} files):
+  {" | ".join(r.file_tree[:120])}   ← show up to 120 paths, space-separated
+  
+  README:
+  {r.readme}                        ← full README up to repo's remaining budget
+  
+  DEPENDENCIES:
+  [{filename}]:
+  {content}
+  ...one block per dep file...
+  
+  CI/CD:
+  [{filename}]:
+  {content}
+  ...one block per ci/cd file...
+  
+  SOURCE FILES:
+  [{path}]:
+  {content}
+  ...one block per source file...
+
+After writing all fields, check len(serialized) against budget[r.name].
+If over budget: truncate readme first (to half), then source file contents
+(proportionally), then dep file contents. Never truncate the file tree or metadata.
+Never cut mid-line — truncate at last newline before the limit.
+
+Header for entire string:
+  === GITHUB: @{self.username} | {self.total_repos} public repos | \
+  {self.repo_count()} non-fork repos fetched | \
+  Top languages: {", ".join(list(self.top_languages.keys())[:10])} ===
+  Pinned repos: {", ".join(self.pinned_repos) or "none"}
+  
+  {serialized repos joined by "\n\n"}
+
+================================================================================
+PART 3 — REWRITE optimize_with_digest() in ats_optimizer.py
+================================================================================
+
+Delete entirely:
+  _STOPWORDS
+  _jd_keywords()
+  _estimate_ats_score()
+  _keyword_breakdown()
+  _map_github_evidence()
+  _JD_ANALYSIS_PROMPT
+  _REWRITE_SYSTEM
+  _REWRITE_PROMPT
+  The old optimize_with_digest() body
+
+Replace _REWRITE_SYSTEM and _REWRITE_PROMPT with these two constants.
+Replace optimize_with_digest() with the new function below.
+Keep everything else in the file untouched.
+
+--- New constant: _DIGEST_SYSTEM ---
+
+_DIGEST_SYSTEM = """\
+You are a world-class technical resume writer and ATS optimization specialist.
+
+You have been given three inputs:
+  1. The candidate's current resume
+  2. A target job description
+  3. The candidate's complete GitHub profile — every public repo they own, including
+     READMEs, full file trees, dependency files, CI/CD configs, and source code
+
+YOUR MISSION:
+Produce the single highest ATS score this candidate can legitimately achieve for this
+specific job, using only what is truthfully evidenced by their resume and GitHub repos.
+
+CORE PRINCIPLES:
+- Never fabricate. Every claim must trace to the resume text or a specific named GitHub
+  repo and file. If you cite a technology, name the repo it came from.
+- GitHub is ground truth. If a repo proves the candidate built something relevant that
+  they never mentioned on their resume, surface it — it is real experience they forgot
+  to claim. Name the repo explicitly.
+- Exact JD keywords beat synonyms. ATS systems do literal string matching. If the JD
+  says "distributed systems", use that exact phrase, not "scalable architecture".
+- Quantify with evidence. Use GitHub signals: stars, forks, number of files, dependency
+  count, CI/CD presence. Infer conservatively — a 200-file repo with CI/CD implies
+  production-grade work. Never invent numbers.
+- XYZ bullet format: "Accomplished [X] as measured by [Y], by doing [Z]."
+- One page. Bullets ≤ 15 words. If content is too long, tighten wording — never
+  remove sections. No em dashes. No buzzwords: spearheaded, leveraged, utilized,
+  streamlined, robust, cutting-edge, passionate about, results-driven.
+- ATS score is your calibrated expert estimate of how a real ATS parses this resume
+  against this JD. A resume with near-complete keyword coverage and strong formatting
+  scores 88–93. Do not inflate. Do not deflate.
+"""
+
+--- New constant: _DIGEST_USER ---
+
+_DIGEST_USER = """\
+<resume>
+{resume_text}
+</resume>
+
+<job_description>
+{job_description}
+</job_description>
+
+<github_profile>
+{github_context}
+</github_profile>
+
+Analyze all three inputs thoroughly. Then produce your output in this exact structure:
+
+<optimized_resume>
+Complete rewritten resume as plain text, ready to copy.
+Must include: summary, experience (with rewritten bullets), skills, projects (exactly 5,
+drawn from GitHub repos most relevant to this JD — use exact repo names).
+</optimized_resume>
+
+<ats_score_before>
+[single integer 0-100: your calibrated estimate of the ORIGINAL resume's ATS score against this JD]
+</ats_score_before>
+
+<ats_score_after>
+[single integer 0-100: your calibrated estimate of the OPTIMIZED resume's ATS score]
+</ats_score_after>
+
+<matched_keywords>
+[comma-separated: every JD keyword or phrase present in the optimized resume]
+</matched_keywords>
+
+<missing_keywords>
+[comma-separated: JD keywords the candidate cannot honestly claim — genuine gaps only]
+</missing_keywords>
+
+<transparency_report>
+For every change made: what changed, why, and the exact source (resume or github:repo-name/file).
+Call out explicitly: which GitHub repos surfaced skills not on the original resume,
+which repo names were used in the projects section and why, which JD keywords were
+injected and where. Be specific — vague entries like "improved bullet" are not acceptable.
+</transparency_report>
+
+<gap_analysis>
+Skills and experience the JD requires that are absent from both the resume and all GitHub
+repos. Be honest. Do not soften genuine gaps. For each gap suggest one concrete way to
+address it (course, project idea, certification).
+</gap_analysis>
+
+<interview_prep>
+For every skill prominently featured — especially any surfaced from GitHub that was not
+on the original resume: one realistic interview question the candidate will face + a
+one-sentence honest answer framework grounded in their actual GitHub evidence.
+</interview_prep>
+
+<role_reframing>
+For each job title on the resume where the actual described work maps more precisely to a
+different function-based title:
+ORIGINAL: <current title>
+NEW: <more accurate title based on the bullets and GitHub work>
+WHY: <one sentence citing specific evidence>
+---
+Only include renamed roles. Output nothing here if no renames are warranted.
+Do not inflate seniority.
+</role_reframing>
+
+---CHANGES---
+One line per change. Format: [TYPE] description | source: resume or github:repo-name
+TYPE must be one of: ROLE | BULLET | SKILL | PROJECT | KEYWORD
+"""
+
+--- New function: optimize_with_digest() ---
+
+async def optimize_with_digest(
+    resume_text: str,
+    job_description: str,
+    github_digest: "GitHubDigest | None" = None,
+) -> ATSOptimizeResponse:
+    """
+    Full-depth ATS optimizer. Claude receives the complete resume, complete JD,
+    and complete GitHub context serialized from GitHubDigest.to_context_string().
+    No pre-filtering. No Python-side scoring. One Claude call.
+    """
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    github_context = (
+        github_digest.to_context_string()
+        if github_digest is not None
+        else "No GitHub data provided."
+    )
+
+    user_msg = _DIGEST_USER.format(
+        resume_text=resume_text,
+        job_description=job_description,
+        github_context=github_context,
+    )
+
+    try:
+        message = await client.messages.create(
+            model=settings.anthropic_model,
+            max_tokens=6000,
+            system=_DIGEST_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error (digest optimize): %s", exc)
+        raise
+
+    full = message.content[0].text if message.content else ""
+
+    # --- Parse structured XML output ---
+
+    optimized_text = _extract_tag(full, "optimized_resume") or resume_text
+
+    def _safe_int(tag: str, fallback: int) -> int:
+        raw = _extract_tag(full, tag).strip()
+        try:
+            return max(0, min(100, int(raw)))
+        except (ValueError, TypeError):
+            return fallback
+
+    score_before = _safe_int("ats_score_before", 0)
+    score_after  = _safe_int("ats_score_after",  0)
+
+    def _csv_tag(tag: str) -> list[str]:
+        raw = _extract_tag(full, tag)
+        if not raw:
+            return []
+        return [k.strip() for k in raw.split(",") if k.strip()][:40]
+
+    matched  = _csv_tag("matched_keywords")
+    missing  = _csv_tag("missing_keywords")
+
+    transparency  = _extract_tag(full, "transparency_report")
+    gap           = _extract_tag(full, "gap_analysis")
+    interview     = _extract_tag(full, "interview_prep")
+    role_reframes = _parse_role_reframes(_extract_tag(full, "role_reframing"))
+
+    if role_reframes:
+        transparency += "\n\nRole Titles Reframed:\n" + "\n".join(
+            f"- {r['original']} → {r['reframed']}: {r['justification']}"
+            for r in role_reframes
+        )
+
+    changes_raw = ""
+    if "---CHANGES---" in full:
+        changes_raw = full.split("---CHANGES---", 1)[1].strip()
+    change_items, changes_plain = _parse_changes(changes_raw)
+
+    latex_text = await _generate_latex(optimized_text, client)
+
+    return ATSOptimizeResponse(
+        original_text=resume_text,
+        optimized_text=optimized_text,
+        latex_text=latex_text,
+        changes_summary=changes_plain,
+        change_items=change_items,
+        ats_score_before=score_before,
+        ats_score_after=score_after,
+        matched_keywords=matched,
+        missing_keywords=missing,
+        improvements=[],
+        transparency_report=transparency,
+        interview_prep=interview,
+        gap_analysis=gap,
+        linkedin_unavailable=False,
+        role_reframes=role_reframes,
+    )
+
+================================================================================
+PART 4 — HARD CONSTRAINTS
+================================================================================
+
+NEVER change:
+  - ATSOptimizeResponse or ChangeItem schemas
+  - Any function signature in ats_optimizer.py other than the internals of
+    optimize_with_digest()
+  - optimize_resume(), optimize_with_profile(), optimize_for_session(),
+    optimize_with_session_context(), _generate_latex()
+  - RepoSummary, GitHubProfile, fetch_github_profile(), _fetch_repo_detail()
+  - _extract_tag(), _parse_changes(), _parse_role_reframes()
+  - Any existing import in either file
+
+MUST change:
+  - fetch_github_digest() — full replacement as specced above
+  - _fetch_repo_digest_full() — new function replacing _fetch_repo_digest()
+  - RepoDigest dataclass — add is_pinned, forks, updated_at fields
+  - GitHubDigest dataclass — add pinned_repos, total_repos fields
+  - GitHubDigest.to_context_string() — full replacement with budget logic
+  - GitHubDigest.repo_count() — new method
+  - optimize_with_digest() — full replacement, one Claude call, no pre-filtering
+  - Delete: _STOPWORDS, _jd_keywords(), _estimate_ats_score(), _keyword_breakdown(),
+            _map_github_evidence(), _JD_ANALYSIS_PROMPT, _REWRITE_SYSTEM,
+            _REWRITE_PROMPT (the old ones)
+
+DO NOT add:
+  - Any new Python-side keyword scoring or filtering logic
+  - Any hardcoded cap on total repos (let asyncio.gather handle all of them)
+  - Any [:N] slice on resume_text, job_description, or the full to_context_string()
+    output before passing to Claude — the budget logic inside to_context_string()
+    is the only place context is managed
+
+ERROR HANDLING:
+  - If GraphQL pinned repos call fails for any reason: continue with pinned_names = []
+  - If a single repo's detail fetch fails: log a warning, skip it, never crash the batch
+  - If the GitHub API returns 403 or 429: log warning, return GitHubDigest with empty
+    repos list (same pattern as existing code)
+  - If Claude's response is missing an XML tag: use the fallback values shown in
+    optimize_with_digest() (resume_text for optimized_text, 0 for scores, [] for lists)
+
+TESTING NOTE:
+  After writing, mentally verify:
+  - A user with 40 public repos: all 40 are fetched, to_context_string() stays
+    under 180_000 chars via budget scaling
+  - A user with 0 repos: to_context_string() returns "No GitHub data."
+  - A user with no GITHUB_TOKEN: GraphQL skipped gracefully, rest proceeds with
+    unauthenticated rate limit (60 req/hr) — log a warning only
+  - optimize_with_digest() called with github_digest=None: passes
+    "No GitHub data provided." as github_context, still produces valid output
+
+================================================================================
+END OF PROMPT
+================================================================================

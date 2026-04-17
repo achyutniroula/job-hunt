@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, ExternalLink, BriefcaseBusiness } from "lucide-react";
+import { Plus, Trash2, ExternalLink, BriefcaseBusiness, Pencil, Check, X } from "lucide-react";
 import toast from "react-hot-toast";
-import { listInterviewSessions, deleteInterviewSession } from "@/lib/api";
+import { listInterviewSessions, deleteInterviewSession, renameInterviewSession } from "@/lib/api";
 
 interface SessionSummary {
   id: string;
@@ -16,6 +16,9 @@ export default function InterviewSessions() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     listInterviewSessions()
@@ -23,6 +26,28 @@ export default function InterviewSessions() {
       .catch(() => toast.error("Failed to load sessions"))
       .finally(() => setLoading(false));
   }, []);
+
+  const startEdit = (s: SessionSummary) => {
+    setEditingId(s.id);
+    setEditValue(s.job_title);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditValue(""); };
+
+  const saveEdit = async (id: string) => {
+    const trimmed = editValue.trim();
+    if (!trimmed) return cancelEdit();
+    try {
+      const updated = await renameInterviewSession(id, trimmed);
+      setSessions((prev) => prev.map((s) => s.id === id ? { ...s, job_title: updated.job_title } : s));
+      toast.success("Renamed");
+    } catch {
+      toast.error("Failed to rename");
+    } finally {
+      cancelEdit();
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this interview session and all its data?")) return;
@@ -76,13 +101,40 @@ export default function InterviewSessions() {
           {sessions.map((s) => (
             <div key={s.id} className="glass-card p-5 flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-manrope font-medium text-text-primary truncate">{s.job_title}</p>
+                {editingId === s.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={inputRef}
+                      className="input-base text-sm flex-1 py-1 px-2"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEdit(s.id);
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                    />
+                    <button className="p-1.5 text-green-400 hover:opacity-80" onClick={() => saveEdit(s.id)}>
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button className="p-1.5 text-text-muted hover:opacity-80" onClick={cancelEdit}>
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <p className="font-manrope font-medium text-text-primary truncate">{s.job_title}</p>
+                    <button
+                      className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-0.5"
+                      onClick={() => startEdit(s)}
+                    >
+                      <Pencil className="w-3 h-3 text-text-muted" />
+                    </button>
+                  </div>
+                )}
                 <p className="text-text-muted text-sm mt-0.5">{s.company_name}</p>
                 <p className="text-text-muted text-xs mt-1">
                   {new Date(s.created_at).toLocaleDateString("en-CA", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
+                    year: "numeric", month: "short", day: "numeric",
                   })}
                 </p>
               </div>

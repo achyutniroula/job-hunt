@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Building2, DollarSign, Clock, ExternalLink, ChevronDown, ChevronUp, Wifi, FileText, Mail, BarChart2 } from "lucide-react";
+import { MapPin, Building2, DollarSign, Clock, ExternalLink, ChevronDown, ChevronUp, Wifi, FileText, Mail, BarChart2, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import type { Job } from "@/types";
+import type { Job, FitAnalysis } from "@/types";
 import ScoreRing from "@/components/ui/ScoreRing";
 import SkillTag from "@/components/ui/SkillTag";
 import BoardBadge from "@/components/ui/BoardBadge";
@@ -48,6 +48,67 @@ function cleanDescription(text: string): string {
     .trim();
 }
 
+// ── Fit Analysis Panel ────────────────────────────────────────────────────────
+
+function FitAnalysisPanel({ fit }: { fit: FitAnalysis }) {
+  const gc = gradeColor(fit.grade);
+  return (
+    <div className="mt-4 rounded-xl p-4" style={{ background: "rgba(30,32,36,0.7)", border: `1px solid ${gc}22` }}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+          style={{ background: `${gc}12`, border: `2px solid ${gc}44` }}>
+          <span className="font-manrope font-bold text-base" style={{ color: gc }}>{fit.grade}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-manrope uppercase tracking-[0.15em] text-text-muted mb-0.5">AI Fit Grade</p>
+          <p className="text-xs text-text-secondary leading-relaxed">{fit.summary}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <p className="text-[10px] text-text-dim uppercase tracking-widest mb-1.5" style={{ color: "#4ade80" }}>Strengths</p>
+          <div className="flex flex-wrap gap-1">
+            {fit.strengths.map(s => (
+              <span key={s} className="text-[10px] px-1.5 py-0.5 rounded"
+                style={{ background: "rgba(74,222,128,0.08)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.2)" }}>
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] text-text-dim uppercase tracking-widest mb-1.5" style={{ color: "#ffc87c" }}>Gaps</p>
+          <div className="flex flex-wrap gap-1">
+            {fit.gaps.map(g => (
+              <span key={g} className="text-[10px] px-1.5 py-0.5 rounded"
+                style={{ background: "rgba(255,200,124,0.08)", color: "#ffc87c", border: "1px solid rgba(255,200,124,0.15)" }}>
+                {g}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {fit.tip && (
+        <div className="pt-3 flex gap-2" style={{ borderTop: "1px solid rgba(68,71,72,0.25)" }}>
+          <Sparkles className="w-3 h-3 shrink-0 mt-0.5" style={{ color: gc }} />
+          <p className="text-[11px] text-text-secondary leading-relaxed">{fit.tip}</p>
+        </div>
+      )}
+
+      <div className="flex gap-2 mt-3 pt-2" style={{ borderTop: "1px solid rgba(68,71,72,0.15)" }}>
+        {fit.seniority !== "any" && (
+          <span className="badge text-[9px] capitalize">Job: {fit.seniority}</span>
+        )}
+        {fit.user_level && (
+          <span className="badge text-[9px] capitalize">You: {fit.user_level}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Score breakdown helpers ───────────────────────────────────────────────────
 const SENIORITY_ORDER = ["internship", "junior", "mid", "senior", "lead", "executive"];
 
@@ -68,12 +129,22 @@ function skillOverlapScore(resumeSkills: string[], jobSkills: string[]): number 
   return Math.round((matched.length / js.length) * 100);
 }
 
+function gradeColor(grade: string): string {
+  const g = grade.toUpperCase();
+  if (g.startsWith("A")) return "#4ade80";
+  if (g.startsWith("B")) return "#7cd0ff";
+  if (g.startsWith("C")) return "#fbbf24";
+  if (g.startsWith("D") || g.startsWith("F")) return "#f87171";
+  return "#8a8680";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function JobCard({ job, resumeSkills = [] }: JobCardProps) {
   const [expanded,     setExpanded]     = useState(false);
   const [hovered,      setHovered]      = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showFit,      setShowFit]      = useState(false);
   const navigate = useNavigate();
   const { setSelectedJobId, setSelectedJob, resumeFilename, parsedResume } = useAppStore();
   const salary   = formatSalary(job);
@@ -115,7 +186,14 @@ export default function JobCard({ job, resumeSkills = [] }: JobCardProps) {
                 </div>
               )}
             </div>
-            <BoardBadge board={job.board} />
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <BoardBadge board={job.board} />
+              {job.archetype && job.archetype !== "Other" && (
+                <span className="badge text-[9px]" style={{ color: "#a78bfa", background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.15)" }}>
+                  {job.archetype}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Meta row */}
@@ -250,6 +328,20 @@ export default function JobCard({ job, resumeSkills = [] }: JobCardProps) {
         )}
       </AnimatePresence>
 
+      {/* Fit Analysis Panel */}
+      <AnimatePresence>
+        {showFit && job.fit_analysis && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <FitAnalysisPanel fit={job.fit_analysis} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Expanded description */}
       <AnimatePresence>
         {expanded && job.description && (
@@ -332,6 +424,18 @@ export default function JobCard({ job, resumeSkills = [] }: JobCardProps) {
               <BarChart2 className="w-3 h-3" />
               {showBreakdown ? "Hide Score" : "Score Breakdown"}
             </button>
+          )}
+          {job.fit_analysis ? (
+            <button
+              onClick={() => setShowFit(v => !v)}
+              className="btn-ghost text-xs px-3 py-1.5 transition-all"
+              style={showFit ? { color: gradeColor(job.fit_analysis.grade), borderColor: `${gradeColor(job.fit_analysis.grade)}40` } : {}}
+            >
+              <Sparkles className="w-3 h-3" />
+              AI Grade: <span style={{ color: gradeColor(job.fit_analysis.grade), fontWeight: 600 }}>{job.fit_analysis.grade}</span>
+            </button>
+          ) : job.match_score !== null && (
+            <span className="text-[10px] text-text-dim animate-pulse px-2">AI grading…</span>
           )}
         </div>
 

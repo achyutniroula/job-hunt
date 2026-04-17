@@ -34,6 +34,7 @@ from app.schemas.interview import (
     InterviewSessionCreate,
     InterviewSessionOut,
     InterviewSessionSummary,
+    SessionRename,
     SessionResumeUpdate,
 )
 from app.services.company_enrichment import enrich_company
@@ -162,9 +163,18 @@ async def create_session(
         except Exception:
             pass
 
+    # Auto-number duplicate (job_title, company_name) pairs
+    from sqlalchemy import func as _func
+    dup_count = await db.scalar(
+        select(_func.count(InterviewSession.id))
+        .where(InterviewSession.job_title.like(f"{body.job_title}%"))
+        .where(InterviewSession.company_name == body.company_name)
+    )
+    job_title = body.job_title if not dup_count else f"{body.job_title} ({dup_count})"
+
     session = InterviewSession(
         id=str(uuid.uuid4()),
-        job_title=body.job_title,
+        job_title=job_title,
         job_description=body.job_description,
         company_name=body.company_name,
         resume_text=body.resume_text,
@@ -228,6 +238,21 @@ async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(session)
     await db.commit()
     return {"deleted": session_id}
+
+
+@router.patch("/session/{session_id}/rename", response_model=InterviewSessionSummary)
+async def rename_session(
+    session_id: str,
+    body: SessionRename,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await db.get(InterviewSession, session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+    session.job_title = body.job_title.strip()
+    await db.commit()
+    await db.refresh(session)
+    return InterviewSessionSummary.model_validate(session)
 
 
 # ── Q&A ───────────────────────────────────────────────────────────────────────
