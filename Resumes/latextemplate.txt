@@ -18,8 +18,6 @@
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
 \usepackage{tabularx}
-% only for pdflatex
-% \input{glyphtounicode}
 
 % fontawesome
 \usepackage{fontawesome5}
@@ -48,11 +46,10 @@
 % custom font: helvetica-style
 \usepackage{tgheros}
 \renewcommand*\familydefault{\sfdefault}
-%% Only if the base font of the document is to be sans serif
 \usepackage[T1]{fontenc}
 
 \pagestyle{fancy}
-\fancyhf{} % clear all header and footer fields
+\fancyhf{}
 \fancyfoot{}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
@@ -61,11 +58,10 @@
 \addtolength{\oddsidemargin}{-0.5in}
 \addtolength{\evensidemargin}{0in}
 \addtolength{\textwidth}{1in}
-\addtolength{\topmargin}{-.5in}
-\addtolength{\textheight}{1.0in}
+\addtolength{\topmargin}{-.6in}
+\addtolength{\textheight}{1.2in}
 
 \urlstyle{same}
-
 \raggedbottom
 \raggedright
 \setlength{\tabcolsep}{0in}
@@ -105,7 +101,7 @@
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0in, label={}]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
 \newcommand{\resumeItemListStart}{\begin{itemize}}
-\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{0pt}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-4pt}}
 
 \color{text-grey}
 
@@ -114,8 +110,9 @@
 
 \begin{document}
 
+%----------HEADING----------
 \begin{center}
-    \textbf{\Huge Achyut Niroula} \\ \vspace{5pt}
+    \textbf{\Huge Achyut Niroula} \\ \vspace{3pt}
     \small
     \faPhone* \texttt{(249) 358-0947} $|$
     \faEnvelope \hspace{2pt} \texttt{niroula.achyut17@gmail.com} $|$
@@ -130,6 +127,9 @@
     \resumeSubheading
       {Nipissing University}{Expected May 2026}
       {B.Sc. Honours Specialization in Computer Science \textnormal{$|$ GPA: 3.7/4.0}}{North Bay, ON}
+      \resumeItemListStart
+        \resumeItem{\textbf{Awards}: President's Scholarship (2021), Carl Sanders Scholarship (2022, 2023, 2024, 2025)}
+      \resumeItemListEnd
   \resumeSubHeadingListEnd
 
 %-----------EXPERIENCE-----------
@@ -137,12 +137,19 @@
   \resumeSubHeadingListStart
 
     \resumeSubheading
-      {Nipissing University}{May 2023 -- Aug 2025}
-      {Research Assistant}{North Bay, ON}
+      {Nipissing University}{Jan. 2026 -- Apr. 2026}
+      {Honours Research Capstone}{North Bay, ON}
       \resumeItemListStart
-        \resumeItem{Designed and delivered a production-ready faculty website, building responsive frontend layouts and reusable UI components using HTML5, CSS3, and JavaScript with a focus on usability and accessibility}
-        \resumeItem{Integrated frontend components with a database-backed CMS backend, collaborating directly with stakeholders to gather requirements and iterate on design across the full software development lifecycle}
-        \resumeItem{Maintained and version-controlled codebase using Git, ensuring clean, modular, and maintainable code organization}
+        \resumeItem{Designed multimodal video platform using large vision models and neural networks for scene analysis}
+        \resumeItem{Delivered end-to-end from ingestion to structured output; applied automated testing and cloud deployment}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Nipissing University}{May 2023 -- Aug. 2025}
+      {Web Developer, Research Assistant}{North Bay, ON}
+      \resumeItemListStart
+        \resumeItem{Gathered stakeholder requirements; delivered features across the full SDLC and validated each release}
+        \resumeItem{Built HTML5/CSS3/JS layouts integrated with a database-backed CMS; applied Git version control throughout}
       \resumeItemListEnd
 
   \resumeSubHeadingListEnd
@@ -152,23 +159,16 @@
     \resumeSubHeadingListStart
 
       \resumeProjectHeading
-          {\textbf{Multimodal Video Understanding Platform} $|$ \emph{Python, FastAPI, React, AWS (S3/SQS/EC2/DynamoDB), Docker}}{}
+          {\textbf{JobHunt AI} $|$ \emph{Python, FastAPI, React, TypeScript, SQLite, Docker}}{}
           \resumeItemListStart
-            \resumeItem{Architected a cloud-native video analytics pipeline on AWS integrating 8+ neural models, fusing vision, depth, motion, and audio signals into a unified per-frame scene representation, optimized for performance and scalability via containerized, stateless inference workers}
-            \resumeItem{Engineered an event-driven inference worker (S3 $\rightarrow$ SQS $\rightarrow$ EC2 GPU) with FastAPI RESTful APIs and WebSocket integration, delivering real-time overlays and per-frame confidence scores synced to interactive video playback}
-            \resumeItem{Integrated Claude API for structured narrative generation via prompt engineering, assembling multi-frame coherent scene summaries from timestamped track groupings and audio transcriptions}
+            \resumeItem{Built ATS optimizer using Claude API with pass/fail output; shipped 262-file modular codebase}
+            \resumeItem{Integrated GitHub API for repo ingestion and AI chat coach via Groq; wrote 4 integration test files}
           \resumeItemListEnd
 
       \resumeProjectHeading
-          {\textbf{Cloud Chat -- Distributed Real-Time Messaging System} $|$ \emph{Java, Firebase, WebSocket, Maven}}{}
+          {\textbf{Indeed Stealth Scraper} $|$ \emph{Python, FastAPI, Playwright}}{}
           \resumeItemListStart
-            \resumeItem{Architected a scalable distributed messaging platform on Firebase with multi-region replication, WebSocket-based synchronization, and role-based access control; designed a hierarchical NoSQL schema with timestamp-based ordering and conflict resolution for concurrent writes}
-          \resumeItemListEnd
-
-      \resumeProjectHeading
-          {\textbf{Niroula's Landscaping -- Cloud Inventory Tracker} $|$ \emph{Flask, Firebase, Google Cloud Run, Docker}}{}
-          \resumeItemListStart
-            \resumeItem{Engineered a serverless full-stack inventory management system on Google Cloud Run with Firebase Realtime Database, three-tier role-based access control, Cloudinary CDN image processing, and Chart.js analytics dashboards, containerized via Docker with auto-scaling across 0--10 instances}
+            \resumeItem{Built scraper with proxy rotation, backoff retry, and JSON/CSV output; tested in live Playwright}
           \resumeItemListEnd
 
     \resumeSubHeadingListEnd
@@ -177,11 +177,10 @@
 \section{TECHNICAL SKILLS}
  \begin{itemize}[leftmargin=0in, label={}]
     \small{\item{
-     \textbf{Languages} {: Java, Python, JavaScript, TypeScript, C++, SQL}\vspace{2pt} \\
-     \textbf{Frameworks \& Libraries} {: React, Vue.js, Next.js, Flask, Spring Boot, Node.js, Express, Angular, PyTorch, TensorFlow, Chart.js}\vspace{2pt} \\
-     \textbf{Cloud \& DevOps} {: AWS (S3, SQS, EC2, DynamoDB, Cognito), Google Cloud Platform, Docker, Maven, Git}\vspace{2pt} \\
-     \textbf{Databases} {: PostgreSQL, MySQL, MongoDB, Firebase Realtime Database} \\
-     \textbf{Other} {: REST APIs, WebSockets, Linux, Full Software Development Lifecycle (SDLC)}
+     \textbf{Languages} {: Python, Java, JavaScript/TypeScript, HTML/CSS, SQL}\vspace{2pt} \\
+     \textbf{Tools \& Frameworks} {: React, FastAPI, Flask, Next.js, Docker, AWS (S3/SQS/EC2/DynamoDB), Firebase, Git}\vspace{2pt} \\
+     \textbf{Databases} {: PostgreSQL, MySQL, MongoDB, Firebase Realtime Database, DynamoDB, SQLite}\vspace{2pt} \\
+     \textbf{Testing} {: pytest, Playwright, JUnit $|$ integration, unit, API, and end-to-end testing}
     }}
  \end{itemize}
 
